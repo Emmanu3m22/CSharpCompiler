@@ -1,0 +1,21 @@
+// Programa de prueba para el compilador LenguajeCSharp
+// Declaraciones con y sin inicialización
+int x = 10;
+int y = 20;
+float resultado = 0.0;
+
+// Asignación con expresión aritmética
+resultado = x + y * 2;
+
+// Declaración de string
+string mensaje = "Hola mundo";
+
+// Uso de Console.WriteLine
+Console.WriteLine(resultado);
+Console.WriteLine(mensaje);
+
+// Operaciones con paréntesis
+int z = (x + y) * 3;
+
+// Booleanos
+bool activo = true;

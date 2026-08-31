@@ -1,0 +1,356 @@
+/* ======================================================================
+ * Analizador.jj — Gramática JavaCC para el lenguaje tipo C#
+ *
+ * BLOQUE 1: LÉXICO  (TOKEN / SKIP)  → Equipo léxico
+ * BLOQUE 2: SINTÁCTICO (reglas BNF) → Equipo sintáctico
+ *
+ * Ambos viven en este mismo archivo porque JavaCC lo requiere así.
+ * Los nodos del AST se importan de com.compilador.ast.*
+ * ====================================================================== */
+
+options {
+    STATIC = false;
+    UNICODE_INPUT = true;
+}
+
+PARSER_BEGIN(Analizador)
+
+package com.compilador;
+
+import com.compilador.ast.*;
+import com.compilador.errores.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Analizador {
+
+    /** Lista de errores léxicos encontrados */
+    private List<ErrorLexico> erroresLexicos = new ArrayList<ErrorLexico>();
+
+    /** Lista de errores sintácticos encontrados */
+    private List<ErrorSintactico> erroresSintacticos = new ArrayList<ErrorSintactico>();
+
+    public List<ErrorLexico> getErroresLexicos() {
+        return erroresLexicos;
+    }
+
+    public List<ErrorSintactico> getErroresSintacticos() {
+        return erroresSintacticos;
+    }
+
+    public boolean tieneErrores() {
+        return !erroresLexicos.isEmpty() || !erroresSintacticos.isEmpty();
+    }
+}
+
+PARSER_END(Analizador)
+
+/* ══════════════════════════════════════════════════════════════════════
+ * BLOQUE 1: LÉXICO — Definición de tokens
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* --- Espacios en blanco y comentarios (se ignoran) --- */
+SKIP : {
+    " " | "\t" | "\n" | "\r"
+}
+
+/* Comentarios de línea */
+SKIP : {
+    <COMENTARIO_LINEA: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n")? >
+}
+
+/* Comentarios de bloque */
+SKIP : {
+    <COMENTARIO_BLOQUE: "/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/" >
+}
+
+/* --- Palabras reservadas --- */
+TOKEN : {
+    <INT:      "int">
+  | <FLOAT:    "float">
+  | <DOUBLE:   "double">
+  | <BOOL:     "bool">
+  | <STRING_T: "string">
+  | <CHAR_T:   "char">
+  | <VOID:     "void">
+  | <IF:       "if">
+  | <ELSE:     "else">
+  | <WHILE:    "while">
+  | <FOR:      "for">
+  | <DO:       "do">
+  | <RETURN:   "return">
+  | <TRUE:     "true">
+  | <FALSE:    "false">
+  | <CLASS:    "class">
+  | <PUBLIC:   "public">
+  | <PRIVATE:  "private">
+  | <STATIC:   "static">
+  | <NEW:      "new">
+  | <NULL:     "null">
+  | <CONSOLE_WRITELINE: "Console.WriteLine">
+}
+
+/* --- Operadores --- */
+TOKEN : {
+    <SUMA:          "+">
+  | <RESTA:         "-">
+  | <MULT:          "*">
+  | <DIV:           "/">
+  | <MOD:           "%">
+  | <ASIGNACION:    "=">
+  | <IGUAL:         "==">
+  | <DIFERENTE:     "!=">
+  | <MENOR:         "<">
+  | <MAYOR:         ">">
+  | <MENOR_IGUAL:   "<=">
+  | <MAYOR_IGUAL:   ">=">
+  | <AND:           "&&">
+  | <OR:            "||">
+  | <NOT:           "!">
+  | <INCREMENTO:    "++">
+  | <DECREMENTO:    "--">
+}
+
+/* --- Delimitadores --- */
+TOKEN : {
+    <PAREN_IZQ:     "(">
+  | <PAREN_DER:     ")">
+  | <LLAVE_IZQ:     "{">
+  | <LLAVE_DER:     "}">
+  | <CORCHETE_IZQ:  "[">
+  | <CORCHETE_DER:  "]">
+  | <PUNTO_COMA:    ";">
+  | <COMA:          ",">
+  | <PUNTO:         ".">
+}
+
+/* --- Literales --- */
+TOKEN : {
+    <NUMERO_ENTERO:  (["0"-"9"])+ >
+  | <NUMERO_DECIMAL: (["0"-"9"])+ "." (["0"-"9"])+ >
+  | <CADENA:         "\"" (~["\"","\\"] | "\\" ~[])* "\"" >
+  | <CARACTER:       "'" (~["'","\\"] | "\\" ~[]) "'" >
+}
+
+/* --- Identificadores (debe ir DESPUÉS de las palabras reservadas) --- */
+TOKEN : {
+    <IDENTIFICADOR: (["a"-"z","A"-"Z","_"]) (["a"-"z","A"-"Z","0"-"9","_"])* >
+}
+
+/* --- Token especial para capturar errores léxicos --- */
+TOKEN : {
+    <ERROR_LEXICO: ~[] >
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * BLOQUE 2: SINTÁCTICO — Reglas gramaticales (BNF)
+ * Cada regla construye y devuelve nodos del AST.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Regla principal: un programa es una secuencia de sentencias hasta EOF.
+ */
+NodoPrograma programa() :
+{
+    NodoPrograma prog = new NodoPrograma();
+    Nodo s;
+}
+{
+    (
+        s = sentencia()
+        { if (s != null) prog.agregarSentencia(s); }
+    )*
+    <EOF>
+    { return prog; }
+}
+
+/**
+ * Una sentencia puede ser: declaración, asignación, comando, o bloque vacío.
+ */
+Nodo sentencia() :
+{
+    Nodo n;
+}
+{
+    (
+        LOOKAHEAD(2) n = declaracion() <PUNTO_COMA> { return n; }
+      | LOOKAHEAD(2) n = asignacion() <PUNTO_COMA>  { return n; }
+      | n = comandoWriteLine() <PUNTO_COMA>           { return n; }
+      | <ERROR_LEXICO>
+        {
+            Token t = getToken(0);
+            erroresLexicos.add(new ErrorLexico(
+                t.image, "Carácter no reconocido", t.beginLine, t.beginColumn
+            ));
+            return null;
+        }
+    )
+}
+
+/**
+ * Declaración: tipo identificador [= expresión]
+ * Ejemplo: int x; o int x = 5 + 3;
+ */
+Nodo declaracion() :
+{
+    Token tipo;
+    Token id;
+    Nodo expr = null;
+}
+{
+    tipo = tipoDato()
+    id = <IDENTIFICADOR>
+    [
+        <ASIGNACION>
+        expr = expresion()
+    ]
+    {
+        return new NodoDeclaracion(
+            tipo.image, id.image, expr,
+            tipo.beginLine, tipo.beginColumn
+        );
+    }
+}
+
+/**
+ * Asignación: identificador = expresión
+ * Ejemplo: x = 10;
+ */
+Nodo asignacion() :
+{
+    Token id;
+    Nodo expr;
+}
+{
+    id = <IDENTIFICADOR>
+    <ASIGNACION>
+    expr = expresion()
+    {
+        return new NodoAsignacion(
+            id.image, expr,
+            id.beginLine, id.beginColumn
+        );
+    }
+}
+
+/**
+ * Comando Console.WriteLine(expresión)
+ */
+Nodo comandoWriteLine() :
+{
+    Nodo expr;
+    Token t;
+}
+{
+    t = <CONSOLE_WRITELINE>
+    <PAREN_IZQ>
+    expr = expresion()
+    <PAREN_DER>
+    {
+        return new NodoComando(
+            "Console.WriteLine", expr,
+            t.beginLine, t.beginColumn
+        );
+    }
+}
+
+/**
+ * Expresión: maneja suma y resta (precedencia más baja).
+ */
+Nodo expresion() :
+{
+    Nodo izq;
+    Nodo der;
+    Token op;
+}
+{
+    izq = termino()
+    (
+        ( op = <SUMA> | op = <RESTA> )
+        der = termino()
+        {
+            izq = new NodoOperacion(
+                izq, op.image, der,
+                op.beginLine, op.beginColumn
+            );
+        }
+    )*
+    { return izq; }
+}
+
+/**
+ * Término: maneja multiplicación, división y módulo.
+ */
+Nodo termino() :
+{
+    Nodo izq;
+    Nodo der;
+    Token op;
+}
+{
+    izq = factor()
+    (
+        ( op = <MULT> | op = <DIV> | op = <MOD> )
+        der = factor()
+        {
+            izq = new NodoOperacion(
+                izq, op.image, der,
+                op.beginLine, op.beginColumn
+            );
+        }
+    )*
+    { return izq; }
+}
+
+/**
+ * Factor: unidad atómica de una expresión.
+ * Puede ser: número, identificador, cadena, booleano, o expresión entre paréntesis.
+ */
+Nodo factor() :
+{
+    Token t;
+    Nodo n;
+}
+{
+    (
+        t = <NUMERO_ENTERO>
+        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
+      | t = <NUMERO_DECIMAL>
+        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
+      | t = <IDENTIFICADOR>
+        { return new NodoIdentificador(t.image, t.beginLine, t.beginColumn); }
+      | t = <CADENA>
+        {
+            // Quitar las comillas del valor
+            String val = t.image.substring(1, t.image.length() - 1);
+            return new NodoCadena(val, t.beginLine, t.beginColumn);
+        }
+      | t = <TRUE>
+        { return new NodoBooleano(true, t.beginLine, t.beginColumn); }
+      | t = <FALSE>
+        { return new NodoBooleano(false, t.beginLine, t.beginColumn); }
+      | <PAREN_IZQ>
+        n = expresion()
+        <PAREN_DER>
+        { return new NodoAgrupacion(n, n.getLinea(), n.getColumna()); }
+    )
+}
+
+/**
+ * Reconoce un tipo de dato y devuelve el token.
+ */
+Token tipoDato() :
+{
+    Token t;
+}
+{
+    (
+        t = <INT>
+      | t = <FLOAT>
+      | t = <DOUBLE>
+      | t = <BOOL>
+      | t = <STRING_T>
+      | t = <CHAR_T>
+    )
+    { return t; }
+}
