@@ -33,6 +33,10 @@ public class AplicacionPrincipal extends JFrame {
     private final PanelResumen panelResumen;
     private JTabbedPane pestanas;
 
+    // ── Estado de errores ──
+    private List<ErrorLexico> ultimosErroresLexicos = new ArrayList<>();
+    private List<ErrorSintactico> ultimosErroresSintacticos = new ArrayList<>();
+
     // ── Botones del toolbar ──
     private JButton btnAnalizar;
     private JButton btnLimpiar;
@@ -125,6 +129,14 @@ public class AplicacionPrincipal extends JFrame {
         // Botón Abrir archivo
         JButton btnAbrir = crearBoton(" Abrir", Colores.TEXTO_TENUE, e -> abrirArchivo());
         toolbar.add(btnAbrir);
+
+        // Botón Guardar
+        JButton btnGuardar = crearBoton(" Guardar", Colores.TEXTO_TENUE, e -> guardarArchivo());
+        toolbar.add(btnGuardar);
+
+        // Botón Exportar Errores
+        JButton btnExportar = crearBoton(" Exportar Errores", Colores.TEXTO_TENUE, e -> exportarErrores());
+        toolbar.add(btnExportar);
 
         return toolbar;
     }
@@ -256,6 +268,9 @@ public class AplicacionPrincipal extends JFrame {
             
             // Agregar errores léxicos encontrados durante la tokenización
             erroresLex.addAll(result.erroresLexicos);
+            
+            this.ultimosErroresLexicos = erroresLex;
+            this.ultimosErroresSintacticos = erroresSint;
             
             tablaTokens.cargarTokens(tokensList, result.erroresLexicos);
 
@@ -401,6 +416,61 @@ public class AplicacionPrincipal extends JFrame {
                 JOptionPane.showMessageDialog(this,
                     "No se pudo leer el archivo: " + ex.getMessage(),
                     "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void guardarArchivo() {
+        JFileChooser chooser = new JFileChooser(".");
+        chooser.setDialogTitle("Guardar archivo de código fuente");
+        int result = chooser.showSaveDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File archivo = chooser.getSelectedFile();
+            try {
+                java.nio.file.Files.write(archivo.toPath(), editor.getCodigo().getBytes(StandardCharsets.UTF_8));
+                JOptionPane.showMessageDialog(this, "Archivo guardado exitosamente.", "Guardar", JOptionPane.INFORMATION_MESSAGE);
+                setTitle("Compilador LenguajeCSharp — " + archivo.getName());
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Error al guardar el archivo: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void exportarErrores() {
+        if (ultimosErroresLexicos.isEmpty() && ultimosErroresSintacticos.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No hay errores para exportar.", "Exportar", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        JFileChooser chooser = new JFileChooser(".");
+        chooser.setDialogTitle("Exportar bitácora de errores");
+        int result = chooser.showSaveDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File archivo = chooser.getSelectedFile();
+            try {
+                StringBuilder sb = new StringBuilder();
+                sb.append("=== BITÁCORA DE ERRORES ===\n\n");
+                
+                if (!ultimosErroresLexicos.isEmpty()) {
+                    sb.append("--- ERRORES LÉXICOS ---\n");
+                    for (ErrorLexico e : ultimosErroresLexicos) {
+                        sb.append(e.toString()).append("\n");
+                    }
+                    sb.append("\n");
+                }
+                
+                if (!ultimosErroresSintacticos.isEmpty()) {
+                    sb.append("--- ERRORES SINTÁCTICOS ---\n");
+                    for (ErrorSintactico e : ultimosErroresSintacticos) {
+                        sb.append(e.toString()).append("\n");
+                    }
+                    sb.append("\n");
+                }
+
+                java.nio.file.Files.write(archivo.toPath(), sb.toString().getBytes(StandardCharsets.UTF_8));
+                JOptionPane.showMessageDialog(this, "Errores exportados exitosamente.", "Exportar", JOptionPane.INFORMATION_MESSAGE);
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Error al exportar errores: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
