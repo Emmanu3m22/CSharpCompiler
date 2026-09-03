@@ -3,23 +3,19 @@ package com.compilador.gui;
 import com.compilador.errores.ErrorSintactico;
 
 import javax.swing.*;
-import javax.swing.table.*;
 import java.awt.*;
 import java.util.List;
 
 /**
  * Panel para mostrar el resultado del análisis sintáctico:
  * - AST generado (representación textual)
- * - Errores sintácticos en una tabla
+ * - Errores sintácticos con detalles contextuales
  */
 public class PanelSintactico extends JPanel {
 
     private final JTextArea areaAST;
-    private final JTable tablaErrores;
-    private final DefaultTableModel modeloErrores;
+    private final JPanel panelErrores;
     private final JLabel labelEstado;
-
-    private static final String[] COLUMNAS_ERR = {"Línea", "Columna", "Encontrado", "Esperado", "Mensaje"};
 
     public PanelSintactico() {
         setLayout(new BorderLayout(0, 4));
@@ -70,49 +66,16 @@ public class PanelSintactico extends JPanel {
         scrollAST.setBorder(BorderFactory.createEmptyBorder());
         split.setTopComponent(scrollAST);
 
-        // Tabla de errores
-        modeloErrores = new DefaultTableModel(COLUMNAS_ERR, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-        tablaErrores = new JTable(modeloErrores);
-        tablaErrores.setFont(Colores.FUENTE_TABLA);
-        tablaErrores.setBackground(Colores.FONDO_TABLA_ROW1);
-        tablaErrores.setForeground(Colores.TEXTO_NORMAL);
-        tablaErrores.setSelectionBackground(Colores.FONDO_SELECCION);
-        tablaErrores.setGridColor(Colores.BORDE);
-        tablaErrores.setRowHeight(24);
-        tablaErrores.setShowVerticalLines(false);
+        // Panel de errores detallados
+        panelErrores = new JPanel();
+        panelErrores.setLayout(new BoxLayout(panelErrores, BoxLayout.Y_AXIS));
+        panelErrores.setBackground(Colores.FONDO_PANEL);
+        panelErrores.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
-        JTableHeader th = tablaErrores.getTableHeader();
-        th.setFont(Colores.FUENTE_TITULO);
-        th.setBackground(Colores.FONDO_TABLA_HEADER);
-        th.setForeground(Colores.TEXTO_NORMAL);
-        th.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, Colores.ACENTO_SINTACTICO));
-        th.setReorderingAllowed(false);
-
-        // Renderer para filas alternadas
-        tablaErrores.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value,
-                    boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value,
-                        isSelected, hasFocus, row, column);
-                if (!isSelected) {
-                    c.setBackground(row % 2 == 0 ? Colores.FONDO_TABLA_ROW1 : Colores.FONDO_TABLA_ROW2);
-                }
-                c.setForeground(Colores.ERROR);
-                setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
-                return c;
-            }
-        });
-
-        JScrollPane scrollErr = new JScrollPane(tablaErrores);
+        JScrollPane scrollErr = new JScrollPane(panelErrores);
         scrollErr.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createMatteBorder(1, 0, 0, 0, Colores.BORDE),
-            "Errores Sintácticos",
+            "Errores Sintácticos Detectados",
             javax.swing.border.TitledBorder.LEFT,
             javax.swing.border.TitledBorder.TOP,
             Colores.FUENTE_PEQUENA,
@@ -133,26 +96,109 @@ public class PanelSintactico extends JPanel {
     }
 
     /**
-     * Carga los errores sintácticos en la tabla.
+     * Carga los errores sintácticos con detalles visuales.
      */
     public void cargarErrores(List<ErrorSintactico> errores) {
-        modeloErrores.setRowCount(0);
-        for (ErrorSintactico e : errores) {
-            modeloErrores.addRow(new Object[]{
-                e.getLinea(),
-                e.getColumna(),
-                e.getTokenEncontrado(),
-                e.getTokenEsperado() != null ? e.getTokenEsperado() : "-",
-                e.getMensaje()
-            });
-        }
+        panelErrores.removeAll();
+
         if (errores.isEmpty()) {
-            labelEstado.setText("✓ Sin errores");
-            labelEstado.setForeground(Colores.EXITO);
+            JLabel lblExito = new JLabel("✓ Sin errores sintácticos");
+            lblExito.setFont(Colores.FUENTE_NORMAL);
+            lblExito.setForeground(Colores.EXITO);
+            panelErrores.add(lblExito);
+            labelEstado.setText("✓ Sintaxis válida");
         } else {
-            labelEstado.setText("✗ " + errores.size() + " error" + (errores.size() > 1 ? "es" : ""));
-            labelEstado.setForeground(Colores.ERROR);
+            labelEstado.setText("✗ " + errores.size() + " error" + 
+                (errores.size() > 1 ? "es" : "") + " sintáctico" + 
+                (errores.size() > 1 ? "s" : ""));
+
+            for (ErrorSintactico error : errores) {
+                panelErrores.add(crearItemError(error));
+                panelErrores.add(Box.createVerticalStrut(8));
+            }
         }
+
+        panelErrores.add(Box.createVerticalGlue());
+        panelErrores.revalidate();
+        panelErrores.repaint();
+    }
+
+    /**
+     * Crea un item visual elegante para mostrar un error sintáctico con contexto.
+     */
+    private JPanel crearItemError(ErrorSintactico error) {
+        JPanel itemPanel = new JPanel(new BorderLayout(8, 4));
+        itemPanel.setBackground(Colores.FONDO_TABLA_ROW1);
+        itemPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Colores.BORDE, 1),
+            BorderFactory.createEmptyBorder(8, 10, 8, 10)
+        ));
+        itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+
+        // Lado izquierdo: Contenido del error
+        JPanel contenido = new JPanel(new GridLayout(4, 1, 0, 4));
+        contenido.setBackground(Colores.FONDO_TABLA_ROW1);
+
+        // Línea 1: Ubicación
+        JLabel lblUbicacion = new JLabel("📍 Línea " + error.getLinea() + ", Columna " + error.getColumna());
+        lblUbicacion.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblUbicacion.setForeground(Colores.ADVERTENCIA);
+        contenido.add(lblUbicacion);
+
+        // Línea 2: Token encontrado
+        JLabel lblEncontrado = new JLabel("Token encontrado: " + error.getTokenEncontrado());
+        lblEncontrado.setFont(Colores.FUENTE_TABLA);
+        lblEncontrado.setForeground(Colores.TEXTO_NORMAL);
+        contenido.add(lblEncontrado);
+
+        // Línea 3: Token esperado
+        String esperado = error.getTokenEsperado() != null ? 
+            error.getTokenEsperado() : "(no especificado)";
+        JLabel lblEsperado = new JLabel("Token esperado: " + esperado);
+        lblEsperado.setFont(Colores.FUENTE_TABLA);
+        lblEsperado.setForeground(Colores.ACENTO_LEXICO);
+        contenido.add(lblEsperado);
+
+        // Línea 4: Mensaje de error
+        JLabel lblMensaje = new JLabel("Error: " + error.getMensaje());
+        lblMensaje.setFont(Colores.FUENTE_NORMAL);
+        lblMensaje.setForeground(Colores.TEXTO_TENUE);
+        lblMensaje.setVerticalAlignment(SwingConstants.TOP);
+        contenido.add(lblMensaje);
+
+        itemPanel.add(contenido, BorderLayout.CENTER);
+
+        // Lado derecho: Icono
+        JLabel iconoError = new JLabel("⚠️");
+        iconoError.setFont(new Font("Arial", Font.PLAIN, 24));
+        iconoError.setHorizontalAlignment(SwingConstants.CENTER);
+        iconoError.setPreferredSize(new Dimension(40, 80));
+        itemPanel.add(iconoError, BorderLayout.EAST);
+
+        // Hover effect
+        itemPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                itemPanel.setBackground(Colores.FONDO_SELECCION);
+                contenido.setBackground(Colores.FONDO_SELECCION);
+                itemPanel.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(Colores.BORDE_ENFOCADO, 2),
+                    BorderFactory.createEmptyBorder(8, 10, 8, 10)
+                ));
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                itemPanel.setBackground(Colores.FONDO_TABLA_ROW1);
+                contenido.setBackground(Colores.FONDO_TABLA_ROW1);
+                itemPanel.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(Colores.BORDE, 1),
+                    BorderFactory.createEmptyBorder(8, 10, 8, 10)
+                ));
+            }
+        });
+
+        return itemPanel;
     }
 
     /**
@@ -160,7 +206,9 @@ public class PanelSintactico extends JPanel {
      */
     public void limpiar() {
         areaAST.setText("");
-        modeloErrores.setRowCount(0);
+        panelErrores.removeAll();
         labelEstado.setText("");
+        panelErrores.revalidate();
+        panelErrores.repaint();
     }
 }

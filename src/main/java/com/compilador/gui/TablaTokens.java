@@ -1,9 +1,13 @@
 package com.compilador.gui;
 
+import com.compilador.errores.ErrorLexico;
+
 import javax.swing.*;
 import javax.swing.table.*;
 import java.awt.*;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Panel que muestra los tokens reconocidos por el analizador léxico
@@ -14,8 +18,9 @@ public class TablaTokens extends JPanel {
     private final JTable tabla;
     private final DefaultTableModel modelo;
     private final JLabel labelConteo;
+    private Set<String> tokenesConError = new HashSet<>();
 
-    private static final String[] COLUMNAS = {"Lexema", "Tipo", "Línea", "Columna"};
+    private static final String[] COLUMNAS = { "Lexema", "ID", "Línea", "Columna" };
 
     public TablaTokens() {
         setLayout(new BorderLayout(0, 4));
@@ -67,20 +72,33 @@ public class TablaTokens extends JPanel {
         // Ancho de columnas
         tabla.getColumnModel().getColumn(0).setPreferredWidth(150); // Lexema
         tabla.getColumnModel().getColumn(1).setPreferredWidth(140); // Tipo
-        tabla.getColumnModel().getColumn(2).setPreferredWidth(50);  // Línea
-        tabla.getColumnModel().getColumn(3).setPreferredWidth(60);  // Columna
+        tabla.getColumnModel().getColumn(2).setPreferredWidth(50); // Línea
+        tabla.getColumnModel().getColumn(3).setPreferredWidth(60); // Columna
 
-        // Renderer para filas alternadas
+        // Renderer para filas alternadas con resaltado de errores
         tabla.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
                     boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value,
                         isSelected, hasFocus, row, column);
+
+                // Obtener datos de la fila
+                String lexema = (String) table.getValueAt(row, 0);
+                String linea = (String) table.getValueAt(row, 2);
+                String columna = (String) table.getValueAt(row, 3);
+                String clave = lexema + "@" + linea + "@" + columna;
+
                 if (!isSelected) {
-                    c.setBackground(row % 2 == 0 ? Colores.FONDO_TABLA_ROW1 : Colores.FONDO_TABLA_ROW2);
+                    if (tokenesConError.contains(clave)) {
+                        // Resaltar tokens con errores en rojo
+                        c.setBackground(new Color(255, 200, 200)); // Rojo suave
+                        c.setForeground(new Color(139, 0, 0)); // Rojo oscuro para el texto
+                    } else {
+                        c.setBackground(row % 2 == 0 ? Colores.FONDO_TABLA_ROW1 : Colores.FONDO_TABLA_ROW2);
+                        c.setForeground(Colores.TEXTO_NORMAL);
+                    }
                 }
-                c.setForeground(Colores.TEXTO_NORMAL);
                 setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
                 return c;
             }
@@ -96,14 +114,38 @@ public class TablaTokens extends JPanel {
      * Carga los tokens del analizador en la tabla.
      * Se recibe la lista de tokens ya extraídos del parser.
      *
-     * @param tokens lista de tokens (cada uno es un arreglo: [lexema, tipo, línea, columna])
+     * @param tokens lista de tokens (cada uno es un arreglo: [lexema, tipo, línea,
+     *               columna])
      */
     public void cargarTokens(List<String[]> tokens) {
+        cargarTokens(tokens, null);
+    }
+
+    /**
+     * Carga los tokens del analizador en la tabla y resalta los errores léxicos.
+     *
+     * @param tokens         lista de tokens (cada uno es un arreglo: [lexema, tipo,
+     *                       línea, columna])
+     * @param erroresLexicos lista de errores léxicos para resaltar
+     */
+    public void cargarTokens(List<String[]> tokens, List<ErrorLexico> erroresLexicos) {
         modelo.setRowCount(0);
+        tokenesConError.clear();
+
+        // Construir un set de tokens con errores para búsqueda rápida
+        if (erroresLexicos != null) {
+            for (ErrorLexico error : erroresLexicos) {
+                String clave = error.getLexema() + "@" + error.getLinea() + "@" + error.getColumna();
+                tokenesConError.add(clave);
+            }
+        }
+
+        // Agregar tokens a la tabla
         for (String[] token : tokens) {
             modelo.addRow(token);
         }
         labelConteo.setText(tokens.size() + " token" + (tokens.size() != 1 ? "s" : ""));
+        tabla.repaint();
     }
 
     /**

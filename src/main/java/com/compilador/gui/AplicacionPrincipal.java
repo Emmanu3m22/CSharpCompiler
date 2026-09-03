@@ -3,12 +3,11 @@ package com.compilador.gui;
 import com.compilador.Analizador;
 import com.compilador.AnalizadorConstants;
 import com.compilador.ParseException;
+import com.compilador.Token;
 import com.compilador.TokenMgrError;
 import com.compilador.ast.NodoPrograma;
 import com.compilador.errores.ErrorLexico;
 import com.compilador.errores.ErrorSintactico;
-import com.compilador.semantic.AnalizadorSemantico;
-import com.compilador.semantic.ErrorSemantico;
 
 import javax.swing.*;
 import java.awt.*;
@@ -29,14 +28,31 @@ public class AplicacionPrincipal extends JFrame {
     // ── Componentes de la interfaz ──
     private final EditorCodigo editor;
     private final TablaTokens tablaTokens;
+    private final PanelErrores panelErrores;
     private final PanelSintactico panelSintactico;
-    private final PanelSemantico panelSemantico;
     private final PanelResumen panelResumen;
     private JTabbedPane pestanas;
+
+    // ── Estado de errores ──
+    private List<ErrorLexico> ultimosErroresLexicos = new ArrayList<>();
+    private List<ErrorSintactico> ultimosErroresSintacticos = new ArrayList<>();
 
     // ── Botones del toolbar ──
     private JButton btnAnalizar;
     private JButton btnLimpiar;
+
+    /**
+     * Clase auxiliar para retornar tanto tokens como errores léxicos.
+     */
+    private static class TokenizationResult {
+        List<String[]> tokens;
+        List<ErrorLexico> erroresLexicos;
+
+        TokenizationResult(List<String[]> tokens, List<ErrorLexico> erroresLexicos) {
+            this.tokens = tokens;
+            this.erroresLexicos = erroresLexicos;
+        }
+    }
 
     public AplicacionPrincipal() {
         super("Compilador LenguajeCSharp v1.0");
@@ -51,8 +67,8 @@ public class AplicacionPrincipal extends JFrame {
         // ── Crear componentes ──
         editor = new EditorCodigo();
         tablaTokens = new TablaTokens();
+        panelErrores = new PanelErrores();
         panelSintactico = new PanelSintactico();
-        panelSemantico = new PanelSemantico();
         panelResumen = new PanelResumen();
 
         // ── Ensamblar layout ──
@@ -68,7 +84,7 @@ public class AplicacionPrincipal extends JFrame {
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  TOOLBAR
+    // TOOLBAR
     // ════════════════════════════════════════════════════════════════
 
     private JPanel crearToolbar() {
@@ -114,6 +130,14 @@ public class AplicacionPrincipal extends JFrame {
         JButton btnAbrir = crearBoton(" Abrir", Colores.TEXTO_TENUE, e -> abrirArchivo());
         toolbar.add(btnAbrir);
 
+        // Botón Guardar
+        JButton btnGuardar = crearBoton(" Guardar", Colores.TEXTO_TENUE, e -> guardarArchivo());
+        toolbar.add(btnGuardar);
+
+        // Botón Exportar Errores
+        JButton btnExportar = crearBoton(" Exportar Errores", Colores.TEXTO_TENUE, e -> exportarErrores());
+        toolbar.add(btnExportar);
+
         return toolbar;
     }
 
@@ -124,9 +148,8 @@ public class AplicacionPrincipal extends JFrame {
         btn.setBackground(Colores.FONDO_PANEL);
         btn.setFocusPainted(false);
         btn.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Colores.BORDE, 1),
-            BorderFactory.createEmptyBorder(4, 12, 4, 12)
-        ));
+                BorderFactory.createLineBorder(Colores.BORDE, 1),
+                BorderFactory.createEmptyBorder(4, 12, 4, 12)));
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.addActionListener(accion);
 
@@ -136,17 +159,16 @@ public class AplicacionPrincipal extends JFrame {
             public void mouseEntered(MouseEvent e) {
                 btn.setBackground(Colores.FONDO_SELECCION);
                 btn.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Colores.BORDE_ENFOCADO, 1),
-                    BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                ));
+                        BorderFactory.createLineBorder(Colores.BORDE_ENFOCADO, 1),
+                        BorderFactory.createEmptyBorder(4, 12, 4, 12)));
             }
+
             @Override
             public void mouseExited(MouseEvent e) {
                 btn.setBackground(Colores.FONDO_PANEL);
                 btn.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Colores.BORDE, 1),
-                    BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                ));
+                        BorderFactory.createLineBorder(Colores.BORDE, 1),
+                        BorderFactory.createEmptyBorder(4, 12, 4, 12)));
             }
         });
 
@@ -161,7 +183,7 @@ public class AplicacionPrincipal extends JFrame {
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  CONTENIDO PRINCIPAL (editor + pestañas)
+    // CONTENIDO PRINCIPAL (editor + pestañas)
     // ════════════════════════════════════════════════════════════════
 
     private JSplitPane crearContenidoPrincipal() {
@@ -171,9 +193,9 @@ public class AplicacionPrincipal extends JFrame {
         pestanas.setBackground(Colores.FONDO_PANEL);
         pestanas.setForeground(Colores.TEXTO_NORMAL);
 
+        pestanas.addTab("Errores", panelErrores);
         pestanas.addTab("Léxico", tablaTokens);
         pestanas.addTab("Sintáctico", panelSintactico);
-        pestanas.addTab("Semántico", panelSemantico);
 
         // Split pane
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, editor, pestanas);
@@ -186,7 +208,7 @@ public class AplicacionPrincipal extends JFrame {
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  LÓGICA DEL ANÁLISIS
+    // LÓGICA DEL ANÁLISIS
     // ════════════════════════════════════════════════════════════════
 
     /**
@@ -197,8 +219,8 @@ public class AplicacionPrincipal extends JFrame {
         String codigo = editor.getCodigo().trim();
         if (codigo.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                "El editor está vacío. Escribe código o selecciona un ejemplo.",
-                "Sin código", JOptionPane.WARNING_MESSAGE);
+                    "El editor está vacío. Escribe código o selecciona un ejemplo.",
+                    "Sin código", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -207,18 +229,29 @@ public class AplicacionPrincipal extends JFrame {
         try {
             // 1. Crear el parser con el código del editor
             ByteArrayInputStream bais = new ByteArrayInputStream(
-                codigo.getBytes(StandardCharsets.UTF_8)
-            );
+                    codigo.getBytes(StandardCharsets.UTF_8));
             Analizador parser = new Analizador(bais);
 
             // 2. Ejecutar análisis léxico + sintáctico → AST
             NodoPrograma ast = null;
-            //boolean parseOk = true;
+            // boolean parseOk = true;
             try {
                 ast = parser.programa();
             } catch (ParseException ex) {
-                //parseOk = false;
-                // Aún podemos mostrar errores parciales
+                // parseOk = false;
+                // Capturar información del error y agregarlo a la lista
+                Token tokenActual = ex.currentToken;
+                if (tokenActual != null) {
+                    String tokenEsperadoStr = tokenActual.next != null ? tokenActual.next.image : "(desconocido)";
+                    ErrorSintactico error = new ErrorSintactico(
+                            tokenActual.image, // tokenEncontrado
+                            tokenEsperadoStr, // tokenEsperado
+                            ex.getMessage(), // mensaje
+                            tokenActual.beginLine, // linea
+                            tokenActual.beginColumn // columna
+                    );
+                    parser.getErroresSintacticos().add(error);
+                }
             }
 
             // 3. Recoger errores léxicos y sintácticos
@@ -226,9 +259,17 @@ public class AplicacionPrincipal extends JFrame {
             List<ErrorSintactico> erroresSint = parser.getErroresSintacticos();
 
             // 4. Extraer tokens para la tabla
-            //    Necesitamos re-tokenizer para obtener la lista de tokens
-            List<String[]> tokensList = extraerTokens(codigo);
-            tablaTokens.cargarTokens(tokensList);
+            // Necesitamos re-tokenizer para obtener la lista de tokens
+            TokenizationResult result = extraerTokensConErrores(codigo);
+            List<String[]> tokensList = result.tokens;
+
+            // Agregar errores léxicos encontrados durante la tokenización
+            erroresLex.addAll(result.erroresLexicos);
+
+            this.ultimosErroresLexicos = erroresLex;
+            this.ultimosErroresSintacticos = erroresSint;
+
+            tablaTokens.cargarTokens(tokensList, result.erroresLexicos);
 
             // 5. Mostrar AST y errores sintácticos
             if (ast != null) {
@@ -238,101 +279,111 @@ public class AplicacionPrincipal extends JFrame {
             }
             panelSintactico.cargarErrores(erroresSint);
 
-            // 6. Análisis semántico (solo si hay AST)
-            List<ErrorSemantico> erroresSem = new ArrayList<>();
-            AnalizadorSemantico semantico = new AnalizadorSemantico();
-            if (ast != null) {
-                erroresSem = semantico.analizar(ast);
-                panelSemantico.cargarSimbolos(semantico.getTablaSimbolos());
-            }
-            panelSemantico.cargarErrores(erroresSem);
+            // 5b. Cargar errores en el panel elegante
+            panelErrores.cargarErroresLexicos(erroresLex);
+            panelErrores.cargarErroresSintacticos(erroresSint);
 
-            // 7. Actualizar resumen
+            // 6. Actualizar resumen
             panelResumen.actualizar(
-                tokensList.size(),
-                erroresLex.size(),
-                erroresSint.size(),
-                erroresSem.size()
+                    tokensList.size(),
+                    erroresLex.size(),
+                    erroresSint.size(),
+                    0 // Sin errores semánticos
             );
 
-            // 8. Ir a la pestaña más relevante
-            if (!erroresLex.isEmpty()) {
-                pestanas.setSelectedIndex(0); // Léxico
-            } else if (!erroresSint.isEmpty()) {
-                pestanas.setSelectedIndex(1); // Sintáctico
-            } else if (!erroresSem.isEmpty()) {
-                pestanas.setSelectedIndex(2); // Semántico
+            // 7. Ir a la pestaña más relevante
+            if (!erroresLex.isEmpty() || !erroresSint.isEmpty()) {
+                pestanas.setSelectedIndex(0); // Errores
             }
 
         } catch (TokenMgrError ex) {
             panelResumen.actualizar(0, 1, 0, 0);
             JOptionPane.showMessageDialog(this,
-                "Error del tokenizador: " + ex.getMessage(),
-                "Error Léxico", JOptionPane.ERROR_MESSAGE);
+                    "Error del tokenizador: " + ex.getMessage(),
+                    "Error Léxico", JOptionPane.ERROR_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this,
-                "Error inesperado: " + ex.getMessage(),
-                "Error", JOptionPane.ERROR_MESSAGE);
+                    "Error inesperado: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
             ex.printStackTrace();
         }
     }
 
     /**
-     * Re-tokeniza el código para obtener la lista de tokens con sus datos.
+     * Re-tokeniza el código para obtener la lista de tokens y errores léxicos.
      * Crea un parser separado solo para extraer tokens uno por uno.
      */
-    private List<String[]> extraerTokens(String codigo) {
+    private TokenizationResult extraerTokensConErrores(String codigo) {
         List<String[]> tokens = new ArrayList<>();
+        List<ErrorLexico> erroresLex = new ArrayList<>();
         try {
             ByteArrayInputStream bais = new ByteArrayInputStream(
-                codigo.getBytes(StandardCharsets.UTF_8)
-            );
+                    codigo.getBytes(StandardCharsets.UTF_8));
             Analizador tokenizer = new Analizador(bais);
 
             com.compilador.Token t;
             while (true) {
                 t = tokenizer.getNextToken();
-                if (t.kind == 0) break; // EOF
+                if (t.kind == 0)
+                    break; // EOF
+
+                // Detectar tokens ERROR_LEXICO según AnalizadorConstants
+                if (t.kind == com.compilador.AnalizadorConstants.ERROR_LEXICO) {
+                    ErrorLexico error = new ErrorLexico(
+                            t.image,
+                            "Carácter no reconocido",
+                            t.beginLine,
+                            t.beginColumn);
+                    erroresLex.add(error);
+                }
 
                 // Obtener nombre del tipo de token desde la imagen del token
                 String tipoNombre = obtenerNombreTipo(t.kind);
-                tokens.add(new String[]{
-                    t.image,
-                    tipoNombre,
-                    String.valueOf(t.beginLine),
-                    String.valueOf(t.beginColumn)
+                tokens.add(new String[] {
+                        t.image,
+                        tipoNombre,
+                        String.valueOf(t.beginLine),
+                        String.valueOf(t.beginColumn)
                 });
             }
         } catch (Exception e) {
             // Si hay error de tokenization, retornar lo que se pudo obtener
         }
-        return tokens;
+        return new TokenizationResult(tokens, erroresLex);
     }
+
+    private static java.util.Map<Integer, String> tokenNombres = null;
 
     /**
      * Mapea el kind de un token a un nombre legible.
-     * Los kinds son generados por JavaCC en AnalizadorConstants.
+     * Extrae el nombre establecido en Analizador.jj (ej. <CLASS>).
      */
     private String obtenerNombreTipo(int kind) {
-        try {
-            // Usar el arreglo tokenImage generado por JavaCC
-            String[] nombres = AnalizadorConstants.tokenImage;
-            if (kind >= 0 && kind < nombres.length) {
-                String nombre = nombres[kind];
-                // Limpiar comillas del tokenImage
-                if (nombre.startsWith("\"") && nombre.endsWith("\"")) {
-                    nombre = nombre.substring(1, nombre.length() - 1);
+        if (tokenNombres == null) {
+            tokenNombres = new java.util.HashMap<>();
+            try {
+                for (java.lang.reflect.Field field : AnalizadorConstants.class.getDeclaredFields()) {
+                    if (field.getType() == int.class) {
+                        String name = field.getName();
+                        if (name.equals("DEFAULT")) continue; // Evitar conflicto con EOF (ambos son 0)
+                        int valor = field.getInt(null);
+                        tokenNombres.put(valor, name);
+                    }
                 }
-                return nombre;
+            } catch (Exception e) {
+                // Fallback pasivo
             }
-        } catch (Exception e) {
-            // Fallback
+        }
+        
+        if (tokenNombres.containsKey(kind)) {
+            return "<" + tokenNombres.get(kind) + ">";
         }
         return "TOKEN_" + kind;
     }
 
+
     // ════════════════════════════════════════════════════════════════
-    //  UTILIDADES
+    // UTILIDADES
     // ════════════════════════════════════════════════════════════════
 
     private void limpiarTodo() {
@@ -342,8 +393,8 @@ public class AplicacionPrincipal extends JFrame {
 
     private void limpiarResultados() {
         tablaTokens.limpiar();
+        panelErrores.limpiar();
         panelSintactico.limpiar();
-        panelSemantico.limpiar();
         panelResumen.limpiar();
     }
 
@@ -351,30 +402,88 @@ public class AplicacionPrincipal extends JFrame {
         JFileChooser chooser = new JFileChooser(".");
         chooser.setDialogTitle("Abrir archivo de código fuente");
         chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
-            "Archivos de texto (*.txt, *.cs)", "txt", "cs"
-        ));
+                "Archivos de texto (*.txt, *.cs)", "txt", "cs"));
 
         int result = chooser.showOpenDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
             File archivo = chooser.getSelectedFile();
             try {
                 String contenido = new String(
-                    java.nio.file.Files.readAllBytes(archivo.toPath()),
-                    StandardCharsets.UTF_8
-                );
+                        java.nio.file.Files.readAllBytes(archivo.toPath()),
+                        StandardCharsets.UTF_8);
                 editor.setCodigo(contenido);
                 limpiarResultados();
                 setTitle("Compilador LenguajeCSharp — " + archivo.getName());
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this,
-                    "No se pudo leer el archivo: " + ex.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
+                        "No se pudo leer el archivo: " + ex.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void guardarArchivo() {
+        JFileChooser chooser = new JFileChooser(".");
+        chooser.setDialogTitle("Guardar archivo de código fuente");
+        int result = chooser.showSaveDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File archivo = chooser.getSelectedFile();
+            try {
+                java.nio.file.Files.write(archivo.toPath(), editor.getCodigo().getBytes(StandardCharsets.UTF_8));
+                JOptionPane.showMessageDialog(this, "Archivo guardado exitosamente.", "Guardar",
+                        JOptionPane.INFORMATION_MESSAGE);
+                setTitle("Compilador LenguajeCSharp — " + archivo.getName());
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Error al guardar el archivo: " + ex.getMessage(), "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void exportarErrores() {
+        if (ultimosErroresLexicos.isEmpty() && ultimosErroresSintacticos.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No hay errores para exportar.", "Exportar",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        JFileChooser chooser = new JFileChooser(".");
+        chooser.setDialogTitle("Exportar bitácora de errores");
+        int result = chooser.showSaveDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File archivo = chooser.getSelectedFile();
+            try {
+                StringBuilder sb = new StringBuilder();
+                sb.append("=== BITÁCORA DE ERRORES ===\n\n");
+
+                if (!ultimosErroresLexicos.isEmpty()) {
+                    sb.append("--- ERRORES LÉXICOS ---\n");
+                    for (ErrorLexico e : ultimosErroresLexicos) {
+                        sb.append(e.toString()).append("\n");
+                    }
+                    sb.append("\n");
+                }
+
+                if (!ultimosErroresSintacticos.isEmpty()) {
+                    sb.append("--- ERRORES SINTÁCTICOS ---\n");
+                    for (ErrorSintactico e : ultimosErroresSintacticos) {
+                        sb.append(e.toString()).append("\n");
+                    }
+                    sb.append("\n");
+                }
+
+                java.nio.file.Files.write(archivo.toPath(), sb.toString().getBytes(StandardCharsets.UTF_8));
+                JOptionPane.showMessageDialog(this, "Errores exportados exitosamente.", "Exportar",
+                        JOptionPane.INFORMATION_MESSAGE);
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Error al exportar errores: " + ex.getMessage(), "Error",
+                        JOptionPane.ERROR_MESSAGE);
             }
         }
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  PUNTO DE ENTRADA
+    // PUNTO DE ENTRADA
     // ════════════════════════════════════════════════════════════════
 
     /**
@@ -384,7 +493,8 @@ public class AplicacionPrincipal extends JFrame {
         // Configurar look & feel del sistema
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         // Personalizar colores globales de Swing
         UIManager.put("Panel.background", Colores.FONDO_PRINCIPAL);
