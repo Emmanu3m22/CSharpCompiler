@@ -59,6 +59,11 @@ SKIP : {
     <COMENTARIO_LINEA: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n")? >
 }
 
+/* Comentarios de documentación */
+SKIP : {
+    <DOC_COMENTARIO: "///" ("\n"|"\r"|"\r\n")? (~["\n","\r"])*>
+}
+
 /* Comentarios de bloque */
 SKIP : {
     <COMENTARIO_BLOQUE: "/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/" >
@@ -73,6 +78,33 @@ TOKEN : {
   | <STRING_T: "string">
   | <CHAR_T:   "char">
   | <VOID:     "void">
+  | <BYTE:     "byte">
+  | <SBYTE:    "sbyte">
+  | <SHORT:    "short">
+  | <USHORT:   "ushort">
+  | <UINT:     "uint">
+  | <LONG:     "long">
+  | <ULONG:    "ulong">
+  | <DECIMAL:  "decimal">
+  | <OBJECT:   "object">
+  | <STRUCT:   "struct">
+  | <INTERFACE:"interface">
+  | <ENUM:     "enum">
+  | <NAMESPACE:"namespace">
+  | <PROTECTED:"protected">
+  | <SWITCH:   "switch">
+  | <CASE:     "case">
+  | <DEFAULT_KW:"default">
+  | <FOREACH:  "foreach">
+  | <BREAK:    "break">
+  | <CONTINUE: "continue">
+  | <THIS:     "this">
+  | <BASE:     "base">
+  | <USING:    "using">
+  | <TRY:      "try">
+  | <CATCH:    "catch">
+  | <FINALLY:  "finally">
+  | <THROW:    "throw">
   | <IF:       "if">
   | <ELSE:     "else">
   | <WHILE:    "while">
@@ -92,7 +124,12 @@ TOKEN : {
 
 /* --- Operadores --- */
 TOKEN : {
-    <SUMA:          "+">
+    <SUMA_ASIG:     "+=">
+  | <RESTA_ASIG:    "-=">
+  | <MULT_ASIG:     "*=">
+  | <DIV_ASIG:      "/=">
+  | <MOD_ASIG:      "%=">
+  | <SUMA:          "+">
   | <RESTA:         "-">
   | <MULT:          "*">
   | <DIV:           "/">
@@ -100,15 +137,18 @@ TOKEN : {
   | <ASIGNACION:    "=">
   | <IGUAL:         "==">
   | <DIFERENTE:     "!=">
-  | <MENOR:         "<">
-  | <MAYOR:         ">">
   | <MENOR_IGUAL:   "<=">
   | <MAYOR_IGUAL:   ">=">
+  | <MENOR:         "<">
+  | <MAYOR:         ">">
   | <AND:           "&&">
   | <OR:            "||">
   | <NOT:           "!">
   | <INCREMENTO:    "++">
   | <DECREMENTO:    "--">
+  | <XOR:           "^">
+  | <DOS_PUNTOS:    ":">
+  | <GUION_BAJO:    "_">
 }
 
 /* --- Delimitadores --- */
@@ -351,6 +391,15 @@ Token tipoDato() :
       | t = <BOOL>
       | t = <STRING_T>
       | t = <CHAR_T>
+      | t = <BYTE>
+      | t = <SBYTE>
+      | t = <SHORT>
+      | t = <USHORT>
+      | t = <UINT>
+      | t = <LONG>
+      | t = <ULONG>
+      | t = <DECIMAL>
+      | t = <OBJECT>
     )
     { return t; }
 }

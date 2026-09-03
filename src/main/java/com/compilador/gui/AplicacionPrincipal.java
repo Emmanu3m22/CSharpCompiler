@@ -315,8 +315,8 @@ public class AplicacionPrincipal extends JFrame {
                 t = tokenizer.getNextToken();
                 if (t.kind == 0) break; // EOF
 
-                // Detectar tokens ERROR_LEXICO (kind = 60 según AnalizadorConstants)
-                if (t.kind == 60) { // ERROR_LEXICO
+                // Detectar tokens ERROR_LEXICO según AnalizadorConstants
+                if (t.kind == com.compilador.AnalizadorConstants.ERROR_LEXICO) {
                     ErrorLexico error = new ErrorLexico(
                         t.image,
                         "Carácter no reconocido",
