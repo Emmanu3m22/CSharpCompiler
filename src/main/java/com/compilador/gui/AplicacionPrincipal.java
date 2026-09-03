@@ -3,12 +3,11 @@ package com.compilador.gui;
 import com.compilador.Analizador;
 import com.compilador.AnalizadorConstants;
 import com.compilador.ParseException;
+import com.compilador.Token;
 import com.compilador.TokenMgrError;
 import com.compilador.ast.NodoPrograma;
 import com.compilador.errores.ErrorLexico;
 import com.compilador.errores.ErrorSintactico;
-import com.compilador.semantic.AnalizadorSemantico;
-import com.compilador.semantic.ErrorSemantico;
 
 import javax.swing.*;
 import java.awt.*;
@@ -29,14 +28,27 @@ public class AplicacionPrincipal extends JFrame {
     // ── Componentes de la interfaz ──
     private final EditorCodigo editor;
     private final TablaTokens tablaTokens;
+    private final PanelErrores panelErrores;
     private final PanelSintactico panelSintactico;
-    private final PanelSemantico panelSemantico;
     private final PanelResumen panelResumen;
     private JTabbedPane pestanas;
 
     // ── Botones del toolbar ──
     private JButton btnAnalizar;
     private JButton btnLimpiar;
+
+    /**
+     * Clase auxiliar para retornar tanto tokens como errores léxicos.
+     */
+    private static class TokenizationResult {
+        List<String[]> tokens;
+        List<ErrorLexico> erroresLexicos;
+
+        TokenizationResult(List<String[]> tokens, List<ErrorLexico> erroresLexicos) {
+            this.tokens = tokens;
+            this.erroresLexicos = erroresLexicos;
+        }
+    }
 
     public AplicacionPrincipal() {
         super("Compilador LenguajeCSharp v1.0");
@@ -51,8 +63,8 @@ public class AplicacionPrincipal extends JFrame {
         // ── Crear componentes ──
         editor = new EditorCodigo();
         tablaTokens = new TablaTokens();
+        panelErrores = new PanelErrores();
         panelSintactico = new PanelSintactico();
-        panelSemantico = new PanelSemantico();
         panelResumen = new PanelResumen();
 
         // ── Ensamblar layout ──
@@ -171,9 +183,9 @@ public class AplicacionPrincipal extends JFrame {
         pestanas.setBackground(Colores.FONDO_PANEL);
         pestanas.setForeground(Colores.TEXTO_NORMAL);
 
+        pestanas.addTab("🔴 Errores", panelErrores);
         pestanas.addTab("Léxico", tablaTokens);
         pestanas.addTab("Sintáctico", panelSintactico);
-        pestanas.addTab("Semántico", panelSemantico);
 
         // Split pane
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, editor, pestanas);
@@ -218,7 +230,19 @@ public class AplicacionPrincipal extends JFrame {
                 ast = parser.programa();
             } catch (ParseException ex) {
                 //parseOk = false;
-                // Aún podemos mostrar errores parciales
+                // Capturar información del error y agregarlo a la lista
+                Token tokenActual = ex.currentToken;
+                if (tokenActual != null) {
+                    String tokenEsperadoStr = tokenActual.next != null ? tokenActual.next.image : "(desconocido)";
+                    ErrorSintactico error = new ErrorSintactico(
+                        tokenActual.image,           // tokenEncontrado
+                        tokenEsperadoStr,            // tokenEsperado
+                        ex.getMessage(),             // mensaje
+                        tokenActual.beginLine,       // linea
+                        tokenActual.beginColumn      // columna
+                    );
+                    parser.getErroresSintacticos().add(error);
+                }
             }
 
             // 3. Recoger errores léxicos y sintácticos
@@ -227,8 +251,13 @@ public class AplicacionPrincipal extends JFrame {
 
             // 4. Extraer tokens para la tabla
             //    Necesitamos re-tokenizer para obtener la lista de tokens
-            List<String[]> tokensList = extraerTokens(codigo);
-            tablaTokens.cargarTokens(tokensList);
+            TokenizationResult result = extraerTokensConErrores(codigo);
+            List<String[]> tokensList = result.tokens;
+            
+            // Agregar errores léxicos encontrados durante la tokenización
+            erroresLex.addAll(result.erroresLexicos);
+            
+            tablaTokens.cargarTokens(tokensList, result.erroresLexicos);
 
             // 5. Mostrar AST y errores sintácticos
             if (ast != null) {
@@ -238,30 +267,21 @@ public class AplicacionPrincipal extends JFrame {
             }
             panelSintactico.cargarErrores(erroresSint);
 
-            // 6. Análisis semántico (solo si hay AST)
-            List<ErrorSemantico> erroresSem = new ArrayList<>();
-            AnalizadorSemantico semantico = new AnalizadorSemantico();
-            if (ast != null) {
-                erroresSem = semantico.analizar(ast);
-                panelSemantico.cargarSimbolos(semantico.getTablaSimbolos());
-            }
-            panelSemantico.cargarErrores(erroresSem);
+            // 5b. Cargar errores en el panel elegante
+            panelErrores.cargarErroresLexicos(erroresLex);
+            panelErrores.cargarErroresSintacticos(erroresSint);
 
-            // 7. Actualizar resumen
+            // 6. Actualizar resumen
             panelResumen.actualizar(
                 tokensList.size(),
                 erroresLex.size(),
                 erroresSint.size(),
-                erroresSem.size()
+                0  // Sin errores semánticos
             );
 
-            // 8. Ir a la pestaña más relevante
-            if (!erroresLex.isEmpty()) {
-                pestanas.setSelectedIndex(0); // Léxico
-            } else if (!erroresSint.isEmpty()) {
-                pestanas.setSelectedIndex(1); // Sintáctico
-            } else if (!erroresSem.isEmpty()) {
-                pestanas.setSelectedIndex(2); // Semántico
+            // 7. Ir a la pestaña más relevante
+            if (!erroresLex.isEmpty() || !erroresSint.isEmpty()) {
+                pestanas.setSelectedIndex(0); // Errores
             }
 
         } catch (TokenMgrError ex) {
@@ -278,11 +298,12 @@ public class AplicacionPrincipal extends JFrame {
     }
 
     /**
-     * Re-tokeniza el código para obtener la lista de tokens con sus datos.
+     * Re-tokeniza el código para obtener la lista de tokens y errores léxicos.
      * Crea un parser separado solo para extraer tokens uno por uno.
      */
-    private List<String[]> extraerTokens(String codigo) {
+    private TokenizationResult extraerTokensConErrores(String codigo) {
         List<String[]> tokens = new ArrayList<>();
+        List<ErrorLexico> erroresLex = new ArrayList<>();
         try {
             ByteArrayInputStream bais = new ByteArrayInputStream(
                 codigo.getBytes(StandardCharsets.UTF_8)
@@ -293,6 +314,17 @@ public class AplicacionPrincipal extends JFrame {
             while (true) {
                 t = tokenizer.getNextToken();
                 if (t.kind == 0) break; // EOF
+
+                // Detectar tokens ERROR_LEXICO (kind = 60 según AnalizadorConstants)
+                if (t.kind == 60) { // ERROR_LEXICO
+                    ErrorLexico error = new ErrorLexico(
+                        t.image,
+                        "Carácter no reconocido",
+                        t.beginLine,
+                        t.beginColumn
+                    );
+                    erroresLex.add(error);
+                }
 
                 // Obtener nombre del tipo de token desde la imagen del token
                 String tipoNombre = obtenerNombreTipo(t.kind);
@@ -306,7 +338,7 @@ public class AplicacionPrincipal extends JFrame {
         } catch (Exception e) {
             // Si hay error de tokenization, retornar lo que se pudo obtener
         }
-        return tokens;
+        return new TokenizationResult(tokens, erroresLex);
     }
 
     /**
@@ -342,8 +374,8 @@ public class AplicacionPrincipal extends JFrame {
 
     private void limpiarResultados() {
         tablaTokens.limpiar();
+        panelErrores.limpiar();
         panelSintactico.limpiar();
-        panelSemantico.limpiar();
         panelResumen.limpiar();
     }
 
