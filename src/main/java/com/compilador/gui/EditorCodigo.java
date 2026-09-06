@@ -13,6 +13,7 @@ public class EditorCodigo extends JPanel {
     private final JTextPane editor;
     private final JTextArea lineas;
     private final JScrollPane scrollPane;
+    private final JLabel lblCursor;
 
     /** Palabras reservadas del lenguaje para resaltado */
     private static final String[] KEYWORDS = {
@@ -55,6 +56,28 @@ public class EditorCodigo extends JPanel {
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
         add(scrollPane, BorderLayout.CENTER);
+
+        // ── Indicador del Cursor ──
+        lblCursor = new JLabel("Línea 1, Columna 1");
+        lblCursor.setFont(Colores.FUENTE_CODIGO);
+        lblCursor.setForeground(Colores.TEXTO_NORMAL);
+        lblCursor.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        add(lblCursor, BorderLayout.SOUTH);
+
+        editor.addCaretListener(new javax.swing.event.CaretListener() {
+            @Override
+            public void caretUpdate(javax.swing.event.CaretEvent e) {
+                int pos = e.getDot();
+                try {
+                    Element root = editor.getDocument().getDefaultRootElement();
+                    int row = root.getElementIndex(pos);
+                    int col = pos - root.getElement(row).getStartOffset();
+                    lblCursor.setText("Línea " + (row + 1) + ", Columna " + (col + 1));
+                } catch (Exception ex) {
+                    lblCursor.setText("Línea 1, Columna 1");
+                }
+            }
+        });
 
         // ── Listener para actualizar líneas y resaltado ──
         editor.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
