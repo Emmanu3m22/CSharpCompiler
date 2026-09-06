@@ -350,13 +350,17 @@ Nodo factor() :
 {
     Token t;
     Nodo n;
+    Token signo = null;
 }
 {
     (
-        t = <NUMERO_ENTERO>
-        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
-      | t = <NUMERO_DECIMAL>
-        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
+        [ signo = <RESTA> ]
+        (
+            t = <NUMERO_ENTERO>
+            { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
+          | t = <NUMERO_DECIMAL>
+            { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
+        )
       | t = <IDENTIFICADOR>
         { return new NodoIdentificador(t.image, t.beginLine, t.beginColumn); }
       | t = <CADENA>

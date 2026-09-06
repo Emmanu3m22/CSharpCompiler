@@ -33,11 +33,31 @@ public class LexicoTest {
     }
 
     @Test
+    @DisplayName("Reconoce números enteros negativos")
+    void testNumeroEnteroNegativo() throws Exception {
+        Analizador parser = crearParser("-42;");
+        Token t1 = parser.getNextToken();
+        assertEquals("-", t1.image);
+        Token t2 = parser.getNextToken();
+        assertEquals("42", t2.image);
+    }
+
+    @Test
     @DisplayName("Reconoce números decimales")
     void testNumeroDecimal() throws Exception {
         Analizador parser = crearParser("3.14;");
         Token t = parser.getNextToken();
         assertEquals("3.14", t.image);
+    }
+
+    @Test
+    @DisplayName("Reconoce números decimales negativos")
+    void testNumeroDecimalNegativo() throws Exception {
+        Analizador parser = crearParser("-3.14;");
+        Token t1 = parser.getNextToken();
+        assertEquals("-", t1.image);
+        Token t2 = parser.getNextToken();
+        assertEquals("3.14", t2.image);
     }
 
     @Test
