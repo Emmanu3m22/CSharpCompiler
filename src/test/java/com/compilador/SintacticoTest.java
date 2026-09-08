@@ -60,6 +60,21 @@ public class SintacticoTest {
     }
 
     @Test
+    @DisplayName("Parsea declaración de arreglo: int[] numeros = new int[5];")
+    void testDeclaracionArreglo() throws Exception {
+        NodoPrograma prog = parsear("int[] numeros = new int[5];");
+
+        NodoDeclaracion decl = (NodoDeclaracion) prog.getSentencias().get(0);
+        assertEquals("int[]", decl.getTipoDato());
+        assertEquals("numeros", decl.getIdentificador());
+        assertInstanceOf(NodoArreglo.class, decl.getInicializacion());
+
+        NodoArreglo arreglo = (NodoArreglo) decl.getInicializacion();
+        assertEquals("int", arreglo.getTipoElemento());
+        assertEquals("5", arreglo.getTamaño());
+    }
+
+    @Test
     @DisplayName("Parsea declaración float con decimal: float pi = 3.14;")
     void testDeclaracionFloat() throws Exception {
         NodoPrograma prog = parsear("float pi = 3.14;");

@@ -166,15 +166,21 @@ TOKEN : {
 
 /* --- Literales --- */
 TOKEN : {
-    <NUMERO_ENTERO:  (["0"-"9"])+ >
-  | <NUMERO_DECIMAL: (["0"-"9"])+ "." (["0"-"9"])+ >
-  | <CADENA:         "\"" (~["\"","\\"] | "\\" ~[])* "\"" >
+        <NUMERO_DECIMAL_NEGATIVO: "-" (["0"-"9"])+ "." (["0"-"9"])+ >
+    | <NUMERO_ENTERO_NEGATIVO:  "-" (["0"-"9"])+ >
+    | <NUMERO_ENTERO:            (["0"-"9"])+ >
+    | <NUMERO_DECIMAL:           (["0"-"9"])+ "." (["0"-"9"])+ >
+    | <CADENA_INVALIDA: "\"" (~["\"","\\"] | "\\" ~[])* (~["\"","\\"," ","\t","\n","\r","0"-"9","a"-"z","A"-"Z","+","-","*","/","%","=","!","<",">","&","|","^",":","_","(",")","{","}","[","]",";",",","."]) (~["\"","\\"] | "\\" ~[])* "\"" >
+    | <CADENA:         "\"" (~["\"","\\","@","#","$"] | "\\" ~[])* "\"" >
   | <CARACTER:       "'" (~["'","\\"] | "\\" ~[]) "'" >
 }
 
 /* --- Identificadores (debe ir DESPUÉS de las palabras reservadas) --- */
 TOKEN : {
-    <IDENTIFICADOR: (["a"-"z","A"-"Z","_"]) (["a"-"z","A"-"Z","0"-"9","_"])* >
+        <IDENTIFICADOR_INVALIDO: (["a"-"z","A"-"Z","_"]) (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'"])*
+            (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","0"-"9","a"-"z","A"-"Z","_"])
+            (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'"])* >
+    | <IDENTIFICADOR: (["a"-"z","A"-"Z","_"]) (["a"-"z","A"-"Z","0"-"9","_"])* >
 }
 
 /* --- Token especial para capturar errores léxicos --- */
@@ -216,11 +222,11 @@ Nodo sentencia() :
         LOOKAHEAD(2) n = declaracion() <PUNTO_COMA> { return n; }
       | LOOKAHEAD(2) n = asignacion() <PUNTO_COMA>  { return n; }
       | n = comandoWriteLine() <PUNTO_COMA>           { return n; }
-      | <ERROR_LEXICO>
+      | ( <ERROR_LEXICO> | <IDENTIFICADOR_INVALIDO> | <CADENA_INVALIDA> )
         {
             Token t = getToken(0);
             erroresLexicos.add(new ErrorLexico(
-                t.image, "Carácter no reconocido", t.beginLine, t.beginColumn
+                t.image, "Símbolo no reconocido en el lexema", t.beginLine, t.beginColumn
             ));
             return null;
         }
@@ -234,19 +240,36 @@ Nodo sentencia() :
 Nodo declaracion() :
 {
     Token tipo;
+    Token tipoElemento = null;
     Token id;
+    Token tamaño = null;
     Nodo expr = null;
+    boolean esArreglo = false;
 }
 {
     tipo = tipoDato()
+    [ <CORCHETE_IZQ> <CORCHETE_DER> { esArreglo = true; } ]
     id = <IDENTIFICADOR>
     [
         <ASIGNACION>
-        expr = expresion()
+        (
+            <NEW>
+            tipoElemento = tipoDato()
+            <CORCHETE_IZQ>
+            tamaño = <NUMERO_ENTERO>
+            <CORCHETE_DER>
+            {
+                expr = new NodoArreglo(
+                    tipoElemento.image, tamaño.image,
+                    tipoElemento.beginLine, tipoElemento.beginColumn
+                );
+            }
+          | expr = expresion()
+        )
     ]
     {
         return new NodoDeclaracion(
-            tipo.image, id.image, expr,
+            tipo.image + (esArreglo ? "[]" : ""), id.image, expr,
             tipo.beginLine, tipo.beginColumn
         );
     }
@@ -356,7 +379,11 @@ Nodo factor() :
     (
         [ signo = <RESTA> ]
         (
-            t = <NUMERO_ENTERO>
+                        t = <NUMERO_ENTERO_NEGATIVO>
+                        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
+                    | t = <NUMERO_DECIMAL_NEGATIVO>
+                        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
+                    | t = <NUMERO_ENTERO>
             { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
           | t = <NUMERO_DECIMAL>
             { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }

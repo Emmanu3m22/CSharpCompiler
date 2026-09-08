@@ -327,11 +327,13 @@ public class AplicacionPrincipal extends JFrame {
                 if (t.kind == 0)
                     break; // EOF
 
-                // Detectar tokens ERROR_LEXICO según AnalizadorConstants
-                if (t.kind == com.compilador.AnalizadorConstants.ERROR_LEXICO) {
+                // Detectar tokens inválidos según AnalizadorConstants
+                if (t.kind == com.compilador.AnalizadorConstants.ERROR_LEXICO
+                        || t.kind == com.compilador.AnalizadorConstants.IDENTIFICADOR_INVALIDO
+                        || t.kind == com.compilador.AnalizadorConstants.CADENA_INVALIDA) {
                     ErrorLexico error = new ErrorLexico(
                             t.image,
-                            "Carácter no reconocido",
+                            "Símbolo no reconocido en el lexema",
                             t.beginLine,
                             t.beginColumn);
                     erroresLex.add(error);
@@ -346,10 +348,77 @@ public class AplicacionPrincipal extends JFrame {
                         String.valueOf(t.beginColumn)
                 });
             }
+            tokens = agruparTokensArreglo(tokens);
         } catch (Exception e) {
             // Si hay error de tokenization, retornar lo que se pudo obtener
         }
         return new TokenizationResult(tokens, erroresLex);
+    }
+
+    /** Agrupa la sintaxis de una declaración de arreglo para la tabla. */
+    private List<String[]> agruparTokensArreglo(List<String[]> tokens) {
+        List<String[]> agrupados = new ArrayList<>();
+        int indice = 0;
+
+        while (indice < tokens.size()) {
+            if (indice + 2 < tokens.size()
+                    && esTipoDato(tokens.get(indice)[1])
+                    && "[".equals(tokens.get(indice + 1)[0])
+                    && "]".equals(tokens.get(indice + 2)[0])) {
+                agrupados.add(combinarTokens(
+                        tokens.get(indice), tokens.get(indice + 1), tokens.get(indice + 2),
+                        "<DECLARACION_ARREGLO>"));
+                indice += 3;
+                continue;
+            }
+
+            if (indice + 3 < tokens.size()
+                    && esTipoDato(tokens.get(indice)[1])
+                    && "[".equals(tokens.get(indice + 1)[0])
+                    && "NUMERO_ENTERO".equals(quitarDelimitadores(tokens.get(indice + 2)[1]))
+                    && "]".equals(tokens.get(indice + 3)[0])) {
+                agrupados.add(combinarTokens(
+                        tokens.get(indice), tokens.get(indice + 1), tokens.get(indice + 2), tokens.get(indice + 3),
+                        "<TAMANO_ARREGLO>"));
+                indice += 4;
+                continue;
+            }
+
+            agrupados.add(tokens.get(indice));
+            indice++;
+        }
+
+        return agrupados;
+    }
+
+    private boolean esTipoDato(String tipo) {
+        return tipo.matches("<(INT|FLOAT|DOUBLE|BOOL|STRING_T|CHAR_T|BYTE|SBYTE|SHORT|USHORT|UINT|LONG|ULONG|DECIMAL|OBJECT)>");
+    }
+
+    private String quitarDelimitadores(String tipo) {
+        if (tipo.startsWith("<") && tipo.endsWith(">")) {
+            return tipo.substring(1, tipo.length() - 1);
+        }
+        return tipo;
+    }
+
+    private String[] combinarTokens(String[] primero, String[] segundo, String[] tercero, String tipo) {
+        return new String[] {
+                primero[0] + segundo[0] + tercero[0],
+                tipo,
+                primero[2],
+                primero[3]
+        };
+    }
+
+    private String[] combinarTokens(String[] primero, String[] segundo, String[] tercero, String[] cuarto,
+            String tipo) {
+        return new String[] {
+                primero[0] + segundo[0] + tercero[0] + cuarto[0],
+                tipo,
+                primero[2],
+                primero[3]
+        };
     }
 
     private static java.util.Map<Integer, String> tokenNombres = null;
