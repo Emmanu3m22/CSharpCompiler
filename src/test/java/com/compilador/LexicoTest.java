@@ -1,14 +1,10 @@
 package com.compilador;
 
-import com.compilador.ast.*;
-import com.compilador.errores.*;
-
 import java.io.StringReader;
-import java.util.List;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.DisplayName;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  * Pruebas del analizador léxico.

@@ -1,12 +1,27 @@
 package com.compilador;
 
-import com.compilador.ast.*;
-
 import java.io.StringReader;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+import com.compilador.ast.Nodo;
+import com.compilador.ast.NodoAgrupacion;
+import com.compilador.ast.NodoArreglo;
+import com.compilador.ast.NodoAsignacion;
+import com.compilador.ast.NodoBooleano;
+import com.compilador.ast.NodoCadena;
+import com.compilador.ast.NodoComando;
+import com.compilador.ast.NodoDeclaracion;
+import com.compilador.ast.NodoNumero;
+import com.compilador.ast.NodoOperacion;
+import com.compilador.ast.NodoPrograma;
 
 /**
  * Pruebas del analizador sintáctico.

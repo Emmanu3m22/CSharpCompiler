@@ -1,5 +1,35 @@
 package com.compilador.gui;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JSeparator;
+import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+
 import com.compilador.Analizador;
 import com.compilador.AnalizadorConstants;
 import com.compilador.ParseException;
@@ -8,14 +38,6 @@ import com.compilador.TokenMgrError;
 import com.compilador.ast.NodoPrograma;
 import com.compilador.errores.ErrorLexico;
 import com.compilador.errores.ErrorSintactico;
-
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Ventana principal del compilador LenguajeCSharp.
