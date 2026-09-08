@@ -1,14 +1,10 @@
 package com.compilador;
 
-import com.compilador.ast.*;
-import com.compilador.errores.*;
-
 import java.io.StringReader;
-import java.util.List;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.DisplayName;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  * Pruebas del analizador léxico.
@@ -36,10 +32,8 @@ public class LexicoTest {
     @DisplayName("Reconoce números enteros negativos")
     void testNumeroEnteroNegativo() throws Exception {
         Analizador parser = crearParser("-42;");
-        Token t1 = parser.getNextToken();
-        assertEquals("-", t1.image);
-        Token t2 = parser.getNextToken();
-        assertEquals("42", t2.image);
+        Token t = parser.getNextToken();
+        assertEquals("-42", t.image);
     }
 
     @Test
@@ -54,10 +48,18 @@ public class LexicoTest {
     @DisplayName("Reconoce números decimales negativos")
     void testNumeroDecimalNegativo() throws Exception {
         Analizador parser = crearParser("-3.14;");
-        Token t1 = parser.getNextToken();
-        assertEquals("-", t1.image);
-        Token t2 = parser.getNextToken();
-        assertEquals("3.14", t2.image);
+        Token t = parser.getNextToken();
+        assertEquals("-3.14", t.image);
+    }
+
+    @Test
+    @DisplayName("Mantiene separada la resta entre identificadores")
+    void testRestaEntreIdentificadores() throws Exception {
+        Analizador parser = crearParser("a - b;");
+
+        assertEquals("a", parser.getNextToken().image);
+        assertEquals("-", parser.getNextToken().image);
+        assertEquals("b", parser.getNextToken().image);
     }
 
     @Test
@@ -139,6 +141,19 @@ public class LexicoTest {
     }
 
     @Test
+    @DisplayName("Reconoce la estructura léxica de un arreglo")
+    void testArreglo() throws Exception {
+        Analizador parser = crearParser("int[] numeros = new int[5];");
+        String[] lexemasEsperados = {
+                "int", "[", "]", "numeros", "=", "new", "int", "[", "5", "]", ";"
+        };
+
+        for (String esperado : lexemasEsperados) {
+            assertEquals(esperado, parser.getNextToken().image);
+        }
+    }
+
+    @Test
     @DisplayName("Ignora espacios en blanco y saltos de línea")
     void testEspaciosEnBlanco() throws Exception {
         Analizador parser = crearParser("   int   \n\t  x   ;");
@@ -177,6 +192,46 @@ public class LexicoTest {
         Token t = parser.getNextToken();
         // El token ERROR_LEXICO captura caracteres inválidos
         assertEquals("@", t.image);
+    }
+
+    @Test
+    @DisplayName("Agrupa identificadores con símbolos inválidos")
+    void testIdentificadorInvalidoCompleto() throws Exception {
+        Analizador parser = crearParser("act$ivo");
+        Token t = parser.getNextToken();
+
+        assertEquals("act$ivo", t.image);
+        assertEquals(AnalizadorConstants.IDENTIFICADOR_INVALIDO, t.kind);
+    }
+
+    @Test
+    @DisplayName("Agrupa identificadores con varios símbolos inválidos")
+    void testIdentificadorConVariosSimbolosInvalidos() throws Exception {
+        Analizador parser = crearParser("resu@#ltado");
+        Token t = parser.getNextToken();
+
+        assertEquals("resu@#ltado", t.image);
+        assertEquals(AnalizadorConstants.IDENTIFICADOR_INVALIDO, t.kind);
+    }
+
+    @Test
+    @DisplayName("Agrupa cadenas con símbolos inválidos")
+    void testCadenaInvalidaCompleta() throws Exception {
+        Analizador parser = crearParser("\"Resul$tado: \"");
+        Token t = parser.getNextToken();
+
+        assertEquals("\"Resul$tado: \"", t.image);
+        assertEquals(AnalizadorConstants.CADENA_INVALIDA, t.kind);
+    }
+
+    @Test
+    @DisplayName("Agrupa cadenas con arroba y numeral inválidos")
+    void testCadenaConVariosSimbolosInvalidos() throws Exception {
+        Analizador parser = crearParser("\"Resu@#ltado: \"");
+        Token t = parser.getNextToken();
+
+        assertEquals("\"Resu@#ltado: \"", t.image);
+        assertEquals(AnalizadorConstants.CADENA_INVALIDA, t.kind);
     }
 
     @Test
