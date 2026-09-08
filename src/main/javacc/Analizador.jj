@@ -219,10 +219,22 @@ Nodo sentencia() :
 }
 {
     (
-        LOOKAHEAD(2) n = declaracion() <PUNTO_COMA> { return n; }
-      | LOOKAHEAD(2) n = asignacion() <PUNTO_COMA>  { return n; }
-      | n = comandoWriteLine() <PUNTO_COMA>           { return n; }
-      | ( <ERROR_LEXICO> | <IDENTIFICADOR_INVALIDO> | <CADENA_INVALIDA> )
+        n = sentenciaIf()                                 { return n; }
+      | n = sentenciaWhile()                              { return n; }
+      | n = sentenciaDoWhile()                            { return n; }
+      | n = sentenciaFor()                                { return n; }
+      | n = sentenciaSwitch()                             { return n; }
+      | LOOKAHEAD(2) n = declaracion() <PUNTO_COMA>       { return n; }
+      | LOOKAHEAD(<IDENTIFICADOR> (<INCREMENTO> | <DECREMENTO>))
+        n = sentenciaIncremento() <PUNTO_COMA>             { return n; }
+      | LOOKAHEAD(<IDENTIFICADOR> (<SUMA_ASIG> | <RESTA_ASIG> | <MULT_ASIG> | <DIV_ASIG> | <MOD_ASIG>))
+        n = asignacionCompuesta() <PUNTO_COMA>             { return n; }
+      | LOOKAHEAD(2) n = asignacion() <PUNTO_COMA>        { return n; }
+      | n = comandoWriteLine() <PUNTO_COMA>               { return n; }
+      | n = sentenciaBreak()                              { return n; }
+      | n = sentenciaContinue()                           { return n; }
+      | <ERROR_LEXICO>
+      |<IDENTIFICADOR_INVALIDO>
         {
             Token t = getToken(0);
             erroresLexicos.add(new ErrorLexico(
@@ -231,6 +243,280 @@ Nodo sentencia() :
             return null;
         }
     )
+}
+
+/**
+ * Bloque de código: { sentencia* }
+ * Agrupa múltiples sentencias entre llaves.
+ */
+NodoBloque bloque() :
+{
+    Token t;
+    NodoBloque blq;
+    Nodo s;
+}
+{
+    t = <LLAVE_IZQ>
+    { blq = new NodoBloque(t.beginLine, t.beginColumn); }
+    (
+        s = sentencia()
+        { if (s != null) blq.agregarSentencia(s); }
+    )*
+    <LLAVE_DER>
+    { return blq; }
+}
+
+/**
+ * Sentencia if/else:
+ *   if (expresion) bloque [else bloque | else if ...]
+ */
+Nodo sentenciaIf() :
+{
+    Token t;
+    Nodo condicion;
+    NodoBloque bloqueThen;
+    Nodo bloqueElse = null;
+}
+{
+    t = <IF>
+    <PAREN_IZQ>
+    condicion = expresion()
+    <PAREN_DER>
+    bloqueThen = bloque()
+    [
+        LOOKAHEAD(1)
+        <ELSE>
+        (
+            LOOKAHEAD(<IF>)
+            bloqueElse = sentenciaIf()
+          | bloqueElse = bloque()
+        )
+    ]
+    {
+        return new NodoIf(condicion, bloqueThen, bloqueElse,
+            t.beginLine, t.beginColumn);
+    }
+}
+
+/**
+ * Sentencia while: while (expresion) bloque
+ */
+Nodo sentenciaWhile() :
+{
+    Token t;
+    Nodo condicion;
+    NodoBloque cuerpo;
+}
+{
+    t = <WHILE>
+    <PAREN_IZQ>
+    condicion = expresion()
+    <PAREN_DER>
+    cuerpo = bloque()
+    {
+        return new NodoWhile(condicion, cuerpo,
+            t.beginLine, t.beginColumn);
+    }
+}
+
+/**
+ * Sentencia do-while: do bloque while (expresion);
+ */
+Nodo sentenciaDoWhile() :
+{
+    Token t;
+    NodoBloque cuerpo;
+    Nodo condicion;
+}
+{
+    t = <DO>
+    cuerpo = bloque()
+    <WHILE>
+    <PAREN_IZQ>
+    condicion = expresion()
+    <PAREN_DER>
+    <PUNTO_COMA>
+    {
+        return new NodoDoWhile(cuerpo, condicion,
+            t.beginLine, t.beginColumn);
+    }
+}
+
+/**
+ * Sentencia for: for ([init]; [condicion]; [actualizacion]) bloque
+ *   init puede ser declaración o asignación
+ *   actualizacion puede ser asignación o incremento/decremento
+ */
+Nodo sentenciaFor() :
+{
+    Token t;
+    Nodo init = null;
+    Nodo condicion = null;
+    Nodo actualizacion = null;
+    NodoBloque cuerpo;
+}
+{
+    t = <FOR>
+    <PAREN_IZQ>
+
+    /* Inicialización (opcional) */
+    [
+        LOOKAHEAD(2) init = declaracion()
+      | LOOKAHEAD(2) init = asignacion()
+    ]
+    <PUNTO_COMA>
+
+    /* Condición (opcional) */
+    [ condicion = expresion() ]
+    <PUNTO_COMA>
+
+    /* Actualización (opcional) */
+    [
+        LOOKAHEAD(<IDENTIFICADOR> (<INCREMENTO> | <DECREMENTO>))
+        actualizacion = sentenciaIncremento()
+      | LOOKAHEAD(<IDENTIFICADOR> (<SUMA_ASIG> | <RESTA_ASIG> | <MULT_ASIG> | <DIV_ASIG> | <MOD_ASIG>))
+        actualizacion = asignacionCompuesta()
+      | actualizacion = asignacion()
+    ]
+
+    <PAREN_DER>
+    cuerpo = bloque()
+    {
+        return new NodoFor(init, condicion, actualizacion, cuerpo,
+            t.beginLine, t.beginColumn);
+    }
+}
+
+/**
+ * Sentencia switch:
+ *   switch (expresion) {
+ *       case valor: sentencias... break;
+ *       default: sentencias... break;
+ *   }
+ */
+Nodo sentenciaSwitch() :
+{
+    Token t;
+    Nodo expr;
+    java.util.List<NodoCaso> casos = new java.util.ArrayList<NodoCaso>();
+    NodoCaso caso;
+}
+{
+    t = <SWITCH>
+    <PAREN_IZQ>
+    expr = expresion()
+    <PAREN_DER>
+    <LLAVE_IZQ>
+    (
+        caso = casoSwitch()
+        { casos.add(caso); }
+    )*
+    <LLAVE_DER>
+    {
+        return new NodoSwitch(expr, casos, t.beginLine, t.beginColumn);
+    }
+}
+
+/**
+ * Un caso dentro de un switch:
+ *   case valor: sentencia*
+ *   default: sentencia*
+ */
+NodoCaso casoSwitch() :
+{
+    Token t;
+    Nodo valor = null;
+    boolean esDefault = false;
+    java.util.List<Nodo> sentencias = new java.util.ArrayList<Nodo>();
+    Nodo s;
+}
+{
+    (
+        t = <CASE>
+        valor = expresion()
+        <DOS_PUNTOS>
+      |
+        t = <DEFAULT_KW>
+        <DOS_PUNTOS>
+        { esDefault = true; }
+    )
+    (
+        LOOKAHEAD( { getToken(1).kind != CASE && getToken(1).kind != DEFAULT_KW && getToken(1).kind != LLAVE_DER } )
+        s = sentencia()
+        { if (s != null) sentencias.add(s); }
+    )*
+    {
+        return new NodoCaso(valor, esDefault, sentencias,
+            t.beginLine, t.beginColumn);
+    }
+}
+
+/**
+ * Sentencia de incremento/decremento: identificador++ o identificador--
+ */
+Nodo sentenciaIncremento() :
+{
+    Token id;
+    Token op;
+}
+{
+    id = <IDENTIFICADOR>
+    ( op = <INCREMENTO> | op = <DECREMENTO> )
+    {
+        return new NodoIncremento(id.image, op.image,
+            id.beginLine, id.beginColumn);
+    }
+}
+
+/**
+ * Asignación compuesta: identificador += expresión, -=, *=, /=, %=
+ */
+Nodo asignacionCompuesta() :
+{
+    Token id;
+    Token op;
+    Nodo expr;
+}
+{
+    id = <IDENTIFICADOR>
+    ( op = <SUMA_ASIG> | op = <RESTA_ASIG> | op = <MULT_ASIG> | op = <DIV_ASIG> | op = <MOD_ASIG> )
+    expr = expresion()
+    {
+        // Se convierte a: id = id op expr
+        // Extraer el operador base (ej: "+=" -> "+")
+        String opBase = op.image.substring(0, op.image.length() - 1);
+        Nodo izq = new NodoIdentificador(id.image, id.beginLine, id.beginColumn);
+        Nodo operacion = new NodoOperacion(izq, opBase, expr, op.beginLine, op.beginColumn);
+        return new NodoAsignacion(id.image, operacion, id.beginLine, id.beginColumn);
+    }
+}
+
+/**
+ * Sentencia break;
+ */
+Nodo sentenciaBreak() :
+{
+    Token t;
+}
+{
+    t = <BREAK> <PUNTO_COMA>
+    {
+        return new NodoComando("break", null, t.beginLine, t.beginColumn);
+    }
+}
+
+/**
+ * Sentencia continue;
+ */
+Nodo sentenciaContinue() :
+{
+    Token t;
+}
+{
+    t = <CONTINUE> <PUNTO_COMA>
+    {
+        return new NodoComando("continue", null, t.beginLine, t.beginColumn);
+    }
 }
 
 /**
@@ -269,7 +555,7 @@ Nodo declaracion() :
     ]
     {
         return new NodoDeclaracion(
-            tipo.image + (esArreglo ? "[]" : ""), id.image, expr,
+            tipo.image, id.image, expr,
             tipo.beginLine, tipo.beginColumn
         );
     }
@@ -317,10 +603,108 @@ Nodo comandoWriteLine() :
     }
 }
 
+/* ── Jerarquía de expresiones (de menor a mayor precedencia) ── */
+
 /**
  * Expresión: maneja suma y resta (precedencia más baja).
  */
 Nodo expresion() :
+{
+    Nodo izq;
+    Nodo der;
+    Token op;
+}
+{
+    izq = expresionAnd()
+    (
+        op = <OR>
+        der = expresionAnd()
+        {
+            izq = new NodoOperacionLogica(
+                izq, op.image, der,
+                op.beginLine, op.beginColumn
+            );
+        }
+    )*
+    { return izq; }
+}
+
+/**
+ * Expresión AND: maneja el operador lógico AND (&&).
+ */
+Nodo expresionAnd() :
+{
+    Nodo izq;
+    Nodo der;
+    Token op;
+}
+{
+    izq = expresionIgualdad()
+    (
+        op = <AND>
+        der = expresionIgualdad()
+        {
+            izq = new NodoOperacionLogica(
+                izq, op.image, der,
+                op.beginLine, op.beginColumn
+            );
+        }
+    )*
+    { return izq; }
+}
+
+/**
+ * Expresión de igualdad: maneja == y !=.
+ */
+Nodo expresionIgualdad() :
+{
+    Nodo izq;
+    Nodo der;
+    Token op;
+}
+{
+    izq = expresionRelacional()
+    (
+        ( op = <IGUAL> | op = <DIFERENTE> )
+        der = expresionRelacional()
+        {
+            izq = new NodoOperacionRelacional(
+                izq, op.image, der,
+                op.beginLine, op.beginColumn
+            );
+        }
+    )*
+    { return izq; }
+}
+
+/**
+ * Expresión relacional: maneja <, >, <=, >=.
+ */
+Nodo expresionRelacional() :
+{
+    Nodo izq;
+    Nodo der;
+    Token op;
+}
+{
+    izq = expresionAditiva()
+    (
+        ( op = <MENOR> | op = <MAYOR> | op = <MENOR_IGUAL> | op = <MAYOR_IGUAL> )
+        der = expresionAditiva()
+        {
+            izq = new NodoOperacionRelacional(
+                izq, op.image, der,
+                op.beginLine, op.beginColumn
+            );
+        }
+    )*
+    { return izq; }
+}
+
+/**
+ * Expresión aditiva: maneja suma (+) y resta (-).
+ */
+Nodo expresionAditiva() :
 {
     Nodo izq;
     Nodo der;
@@ -379,11 +763,7 @@ Nodo factor() :
     (
         [ signo = <RESTA> ]
         (
-                        t = <NUMERO_ENTERO_NEGATIVO>
-                        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
-                    | t = <NUMERO_DECIMAL_NEGATIVO>
-                        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
-                    | t = <NUMERO_ENTERO>
+            t = <NUMERO_ENTERO>
             { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
           | t = <NUMERO_DECIMAL>
             { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
@@ -396,10 +776,20 @@ Nodo factor() :
             String val = t.image.substring(1, t.image.length() - 1);
             return new NodoCadena(val, t.beginLine, t.beginColumn);
         }
+      | t = <CARACTER>
+        {
+            String charVal = t.image.substring(1, t.image.length() - 1);
+            return new NodoCadena(charVal, t.beginLine, t.beginColumn);
+        }
       | t = <TRUE>
         { return new NodoBooleano(true, t.beginLine, t.beginColumn); }
       | t = <FALSE>
         { return new NodoBooleano(false, t.beginLine, t.beginColumn); }
+      | t = <NULL>
+        { return new NodoIdentificador("null", t.beginLine, t.beginColumn); }
+      | t = <NOT>
+        n = factor()
+        { return new NodoNegacionLogica(n, t.beginLine, t.beginColumn); }
       | <PAREN_IZQ>
         n = expresion()
         <PAREN_DER>
@@ -422,6 +812,7 @@ Token tipoDato() :
       | t = <BOOL>
       | t = <STRING_T>
       | t = <CHAR_T>
+      | t = <VOID>
       | t = <BYTE>
       | t = <SBYTE>
       | t = <SHORT>
