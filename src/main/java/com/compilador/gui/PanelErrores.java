@@ -34,7 +34,7 @@ public class PanelErrores extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
         // ── Sección de Errores Léxicos ──
-        add(crearSeccionErrores(true));
+        JPanel encabezadoLexico = crearSeccionErrores(true);
         panelErroresLexicos = new JPanel();
         panelErroresLexicos.setLayout(new BoxLayout(panelErroresLexicos, BoxLayout.Y_AXIS));
         panelErroresLexicos.setBackground(Colores.FONDO_PANEL);
@@ -44,11 +44,13 @@ public class PanelErrores extends JPanel {
         scrollLex.setBackground(Colores.FONDO_PANEL);
         scrollLex.setBorder(BorderFactory.createLineBorder(Colores.BORDE, 1));
         scrollLex.getViewport().setBackground(Colores.FONDO_PANEL);
-        add(scrollLex);
-        add(Box.createVerticalStrut(12));
+        JPanel seccionLexica = new JPanel(new BorderLayout(0, 4));
+        seccionLexica.setBackground(Colores.FONDO_PRINCIPAL);
+        seccionLexica.add(encabezadoLexico, BorderLayout.NORTH);
+        seccionLexica.add(scrollLex, BorderLayout.CENTER);
 
         // ── Sección de Errores Sintácticos ──
-        add(crearSeccionErrores(false));
+        JPanel encabezadoSintactico = crearSeccionErrores(false);
         panelErroresSintacticos = new JPanel();
         panelErroresSintacticos.setLayout(new BoxLayout(panelErroresSintacticos, BoxLayout.Y_AXIS));
         panelErroresSintacticos.setBackground(Colores.FONDO_PANEL);
@@ -58,9 +60,20 @@ public class PanelErrores extends JPanel {
         scrollSint.setBackground(Colores.FONDO_PANEL);
         scrollSint.setBorder(BorderFactory.createLineBorder(Colores.BORDE, 1));
         scrollSint.getViewport().setBackground(Colores.FONDO_PANEL);
-        add(scrollSint);
 
-        add(Box.createVerticalGlue());
+        JPanel seccionSintactica = new JPanel(new BorderLayout(0, 4));
+        seccionSintactica.setBackground(Colores.FONDO_PRINCIPAL);
+        seccionSintactica.add(encabezadoSintactico, BorderLayout.NORTH);
+        seccionSintactica.add(scrollSint, BorderLayout.CENTER);
+
+        JSplitPane splitErrores = new JSplitPane(
+            JSplitPane.VERTICAL_SPLIT, seccionLexica, seccionSintactica);
+        splitErrores.setResizeWeight(0.5);
+        splitErrores.setDividerLocation(0.5);
+        splitErrores.setDividerSize(6);
+        splitErrores.setBorder(BorderFactory.createEmptyBorder());
+        splitErrores.setBackground(Colores.FONDO_PRINCIPAL);
+        add(splitErrores);
     }
 
     /**
