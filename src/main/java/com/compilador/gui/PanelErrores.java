@@ -5,7 +5,11 @@ import com.compilador.errores.ErrorSintactico;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 /**
  * Panel elegante para mostrar errores léxicos y sintácticos.
@@ -15,10 +19,16 @@ public class PanelErrores extends JPanel {
 
     private final JPanel panelErroresLexicos;
     private final JPanel panelErroresSintacticos;
+    private final BiConsumer<Integer, Integer> alSeleccionarError;
     private JLabel labelCountLex;
     private JLabel labelCountSint;
 
     public PanelErrores() {
+        this((linea, columna) -> { });
+    }
+
+    public PanelErrores(BiConsumer<Integer, Integer> alSeleccionarError) {
+        this.alSeleccionarError = alSeleccionarError;
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBackground(Colores.FONDO_PRINCIPAL);
         setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
@@ -181,6 +191,16 @@ public class PanelErrores extends JPanel {
         iconoError.setPreferredSize(new Dimension(30, 60));
         itemPanel.add(iconoError, BorderLayout.EAST);
 
+        MouseListener listenerSeleccion = new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    alSeleccionarError.accept(linea, columna);
+                }
+            }
+        };
+        agregarListenerAComponentes(itemPanel, listenerSeleccion);
+
         // Hover effect
         itemPanel.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -205,6 +225,15 @@ public class PanelErrores extends JPanel {
         });
 
         return itemPanel;
+    }
+
+    private void agregarListenerAComponentes(Component componente, MouseListener listener) {
+        componente.addMouseListener(listener);
+        if (componente instanceof Container contenedor) {
+            for (Component hijo : contenedor.getComponents()) {
+                agregarListenerAComponentes(hijo, listener);
+            }
+        }
     }
 
     /**
