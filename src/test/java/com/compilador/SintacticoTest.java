@@ -7,21 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.compilador.ast.Nodo;
-import com.compilador.ast.NodoAgrupacion;
-import com.compilador.ast.NodoArreglo;
-import com.compilador.ast.NodoAsignacion;
-import com.compilador.ast.NodoBooleano;
-import com.compilador.ast.NodoCadena;
-import com.compilador.ast.NodoComando;
-import com.compilador.ast.NodoDeclaracion;
-import com.compilador.ast.NodoNumero;
-import com.compilador.ast.NodoOperacion;
-import com.compilador.ast.NodoPrograma;
+import com.compilador.ast.*;
 
 /**
  * Pruebas del analizador sintáctico.
@@ -105,6 +96,34 @@ public class SintacticoTest {
         NodoNumero num = (NodoNumero) decl.getInicializacion();
         assertEquals("3.14", num.getValor());
         assertTrue(num.esDecimal());
+    }
+
+    @Test
+    @DisplayName("Parsea declaración float negativo: float neg = -3.14;")
+    void testDeclaracionFloatNegativo() throws Exception {
+        NodoPrograma prog = parsear("float neg = -3.14;");
+
+        NodoDeclaracion decl = (NodoDeclaracion) prog.getSentencias().get(0);
+        assertEquals("float", decl.getTipoDato());
+        assertEquals("neg", decl.getIdentificador());
+
+        NodoNumero num = (NodoNumero) decl.getInicializacion();
+        assertEquals("-3.14", num.getValor());
+        assertTrue(num.esDecimal());
+    }
+
+    @Test
+    @DisplayName("Parsea declaración int negativo: int neg = -5;")
+    void testDeclaracionIntNegativoMenosCinco() throws Exception {
+        NodoPrograma prog = parsear("int neg = -5;");
+
+        NodoDeclaracion decl = (NodoDeclaracion) prog.getSentencias().get(0);
+        assertEquals("int", decl.getTipoDato());
+        assertEquals("neg", decl.getIdentificador());
+
+        NodoNumero num = (NodoNumero) decl.getInicializacion();
+        assertEquals("-5", num.getValor());
+        assertFalse(num.esDecimal());
     }
 
     @Test

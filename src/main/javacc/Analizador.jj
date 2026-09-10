@@ -554,8 +554,12 @@ Nodo declaracion() :
         )
     ]
     {
+        String tipoStr = tipo.image;
+        if (esArreglo) {
+            tipoStr += "[]";
+        }
         return new NodoDeclaracion(
-            tipo.image, id.image, expr,
+            tipoStr, id.image, expr,
             tipo.beginLine, tipo.beginColumn
         );
     }
@@ -766,6 +770,10 @@ Nodo factor() :
             t = <NUMERO_ENTERO>
             { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
           | t = <NUMERO_DECIMAL>
+            { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
+          | t = <NUMERO_ENTERO_NEGATIVO>
+            { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
+          | t = <NUMERO_DECIMAL_NEGATIVO>
             { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
         )
       | t = <IDENTIFICADOR>

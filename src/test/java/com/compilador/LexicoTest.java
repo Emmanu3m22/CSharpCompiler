@@ -34,6 +34,16 @@ public class LexicoTest {
         Analizador parser = crearParser("-42;");
         Token t = parser.getNextToken();
         assertEquals("-42", t.image);
+        assertEquals(AnalizadorConstants.NUMERO_ENTERO_NEGATIVO, t.kind);
+    }
+
+    @Test
+    @DisplayName("Reconoce el número -5 en un solo token")
+    void testNumeroMenosCinco() throws Exception {
+        Analizador parser = crearParser("-5;");
+        Token t = parser.getNextToken();
+        assertEquals("-5", t.image);
+        assertEquals(AnalizadorConstants.NUMERO_ENTERO_NEGATIVO, t.kind);
     }
 
     @Test
