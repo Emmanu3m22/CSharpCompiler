@@ -89,7 +89,7 @@ public class AplicacionPrincipal extends JFrame {
         // ── Crear componentes ──
         editor = new EditorCodigo();
         tablaTokens = new TablaTokens();
-        panelErrores = new PanelErrores();
+        panelErrores = new PanelErrores((linea, columna) -> editor.irAUbicacion(linea, columna));
         panelSintactico = new PanelSintactico();
         panelResumen = new PanelResumen();
 
@@ -287,6 +287,15 @@ public class AplicacionPrincipal extends JFrame {
 
             // Agregar errores léxicos encontrados durante la tokenización
             erroresLex.addAll(result.erroresLexicos);
+
+            List<Integer> lineasConErrores = new ArrayList<>();
+            for (ErrorLexico error : erroresLex) {
+                lineasConErrores.add(error.getLinea());
+            }
+            for (ErrorSintactico error : erroresSint) {
+                lineasConErrores.add(error.getLinea());
+            }
+            editor.marcarLineasConErrores(lineasConErrores);
 
             this.ultimosErroresLexicos = erroresLex;
             this.ultimosErroresSintacticos = erroresSint;
