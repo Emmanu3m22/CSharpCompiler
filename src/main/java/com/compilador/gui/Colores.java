@@ -55,8 +55,8 @@ public final class Colores {
 
     // ── Fuentes ──
     public static final Font FUENTE_CODIGO       = new Font("Consolas", Font.PLAIN, 14);
-    public static final Font FUENTE_NORMAL       = new Font("Segoe UI", Font.PLAIN, 13);
-    public static final Font FUENTE_TITULO       = new Font("Segoe UI", Font.BOLD, 14);
-    public static final Font FUENTE_PEQUENA      = new Font("Segoe UI", Font.PLAIN, 11);
+    public static final Font FUENTE_NORMAL       = new Font("Segoe UI Emoji", Font.PLAIN, 13);
+    public static final Font FUENTE_TITULO       = new Font("Segoe UI Emoji", Font.BOLD, 14);
+    public static final Font FUENTE_PEQUENA      = new Font("Segoe UI Emoji", Font.PLAIN, 11);
     public static final Font FUENTE_TABLA        = new Font("Consolas", Font.PLAIN, 12);
 }
