@@ -41,6 +41,31 @@ public class Analizador {
     public boolean tieneErrores() {
         return !erroresLexicos.isEmpty() || !erroresSintacticos.isEmpty();
     }
+
+    /** 
+     * Método para recuperarse de un error sintáctico consumiendo tokens 
+     * hasta encontrar un punto de sincronización (como ;, }, case, default o EOF).
+     */
+    void recuperarErrorSintactico() {
+        Token t = getToken(1);
+        while (t.kind != PUNTO_COMA && t.kind != LLAVE_DER && t.kind != EOF 
+                && t.kind != CASE && t.kind != DEFAULT_KW) {
+            getNextToken();
+            t = getToken(1);
+        }
+        if (t.kind == PUNTO_COMA) {
+            getNextToken();
+        }
+    }
+
+    /** Detecta si el token actual inicia una declaración de variable (tipo de dato). */
+    boolean esDeclaracion() {
+        int k = getToken(1).kind;
+        return k == INT || k == FLOAT || k == DOUBLE || k == BOOL || k == STRING_T
+            || k == CHAR_T || k == VOID || k == BYTE || k == SBYTE || k == SHORT
+            || k == USHORT || k == UINT || k == LONG || k == ULONG || k == DECIMAL
+            || k == OBJECT;
+    }
 }
 
 PARSER_END(Analizador)
@@ -149,6 +174,7 @@ TOKEN : {
   | <XOR:           "^">
   | <DOS_PUNTOS:    ":">
   | <GUION_BAJO:    "_">
+  | <INTERROGACION: "?">
 }
 
 /* --- Delimitadores --- */
@@ -170,17 +196,17 @@ TOKEN : {
     | <NUMERO_ENTERO_NEGATIVO:  "-" (["0"-"9"])+ >
     | <NUMERO_ENTERO:            (["0"-"9"])+ >
     | <NUMERO_DECIMAL:           (["0"-"9"])+ "." (["0"-"9"])+ >
-    | <CADENA_INVALIDA: "\"" (~["\"","\\"] | "\\" ~[])* (~["\"","\\"," ","\t","\n","\r","0"-"9","a"-"z","A"-"Z","+","-","*","/","%","=","!","<",">","&","|","^",":","_","(",")","{","}","[","]",";",",","."]) (~["\"","\\"] | "\\" ~[])* "\"" >
-    | <CADENA:         "\"" (~["\"","\\","@","#","$"] | "\\" ~[])* "\"" >
+    | <CADENA:         "\"" (~["\"","\\"] | "\\" ~[])* "\"" >
+    | <CADENA_VERBATIM: "@\"" (~["\""] | "\"\"")* "\"" >
   | <CARACTER:       "'" (~["'","\\"] | "\\" ~[]) "'" >
 }
 
 /* --- Identificadores (debe ir DESPUÉS de las palabras reservadas) --- */
 TOKEN : {
-        <IDENTIFICADOR_INVALIDO: (["a"-"z","A"-"Z","_"]) (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'"])*
-            (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","0"-"9","a"-"z","A"-"Z","_"])
-            (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'"])* >
-    | <IDENTIFICADOR: (["a"-"z","A"-"Z","_"]) (["a"-"z","A"-"Z","0"-"9","_"])* >
+        <IDENTIFICADOR_INVALIDO: ("@")? (["a"-"z","A"-"Z","_"]) (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","?"])*
+            (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","0"-"9","a"-"z","A"-"Z","_","?"])
+            (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","?"])* >
+    | <IDENTIFICADOR: ("@")? (["a"-"z","A"-"Z","_"]) (["a"-"z","A"-"Z","0"-"9","_"])* >
 }
 
 /* --- Token especial para capturar errores léxicos --- */
@@ -203,8 +229,16 @@ NodoPrograma programa() :
 }
 {
     (
-        s = sentencia()
-        { if (s != null) prog.agregarSentencia(s); }
+        try {
+            s = sentencia()
+            { if (s != null) prog.agregarSentencia(s); }
+        } catch (ParseException e) {
+            String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+            int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+            int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+            erroresSintacticos.add(new ErrorSintactico(encontrado, "...", e.getMessage(), linea, columna));
+            recuperarErrorSintactico();
+        }
     )*
     <EOF>
     { return prog; }
@@ -224,7 +258,8 @@ Nodo sentencia() :
       | n = sentenciaDoWhile()                            { return n; }
       | n = sentenciaFor()                                { return n; }
       | n = sentenciaSwitch()                             { return n; }
-      | LOOKAHEAD(2) n = declaracion() <PUNTO_COMA>       { return n; }
+      | LOOKAHEAD({ esDeclaracion() })
+        n = declaracion() <PUNTO_COMA>                   { return n; }
       | LOOKAHEAD(<IDENTIFICADOR> (<INCREMENTO> | <DECREMENTO>))
         n = sentenciaIncremento() <PUNTO_COMA>             { return n; }
       | LOOKAHEAD(<IDENTIFICADOR> (<SUMA_ASIG> | <RESTA_ASIG> | <MULT_ASIG> | <DIV_ASIG> | <MOD_ASIG>))
@@ -259,8 +294,16 @@ NodoBloque bloque() :
     t = <LLAVE_IZQ>
     { blq = new NodoBloque(t.beginLine, t.beginColumn); }
     (
-        s = sentencia()
-        { if (s != null) blq.agregarSentencia(s); }
+        try {
+            s = sentencia()
+            { if (s != null) blq.agregarSentencia(s); }
+        } catch (ParseException e) {
+            String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+            int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+            int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+            erroresSintacticos.add(new ErrorSintactico(encontrado, "...", e.getMessage(), linea, columna));
+            recuperarErrorSintactico();
+        }
     )*
     <LLAVE_DER>
     { return blq; }
@@ -442,8 +485,16 @@ NodoCaso casoSwitch() :
     )
     (
         LOOKAHEAD( { getToken(1).kind != CASE && getToken(1).kind != DEFAULT_KW && getToken(1).kind != LLAVE_DER } )
-        s = sentencia()
-        { if (s != null) sentencias.add(s); }
+        try {
+            s = sentencia()
+            { if (s != null) sentencias.add(s); }
+        } catch (ParseException e) {
+            String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+            int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+            int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+            erroresSintacticos.add(new ErrorSintactico(encontrado, "...", e.getMessage(), linea, columna));
+            recuperarErrorSintactico();
+        }
     )*
     {
         return new NodoCaso(valor, esDefault, sentencias,
@@ -531,9 +582,11 @@ Nodo declaracion() :
     Token tamaño = null;
     Nodo expr = null;
     boolean esArreglo = false;
+    boolean esNullable = false;
 }
 {
     tipo = tipoDato()
+    [ <INTERROGACION> { esNullable = true; } ]
     [ <CORCHETE_IZQ> <CORCHETE_DER> { esArreglo = true; } ]
     id = <IDENTIFICADOR>
     [
@@ -555,6 +608,9 @@ Nodo declaracion() :
     ]
     {
         String tipoStr = tipo.image;
+        if (esNullable) {
+            tipoStr += "?";
+        }
         if (esArreglo) {
             tipoStr += "[]";
         }
@@ -610,9 +666,35 @@ Nodo comandoWriteLine() :
 /* ── Jerarquía de expresiones (de menor a mayor precedencia) ── */
 
 /**
- * Expresión: maneja suma y resta (precedencia más baja).
+ * Expresión: maneja el operador ternario (? :).
  */
 Nodo expresion() :
+{
+    Nodo cond;
+    Nodo verdadero = null;
+    Nodo falso = null;
+    Token t = null;
+}
+{
+    cond = expresionOr()
+    [
+        t = <INTERROGACION>
+        verdadero = expresion()
+        <DOS_PUNTOS>
+        falso = expresion()
+    ]
+    {
+        if (t != null) {
+            return new NodoTernario(cond, verdadero, falso, t.beginLine, t.beginColumn);
+        }
+        return cond;
+    }
+}
+
+/**
+ * Expresión OR: maneja el operador lógico OR (||).
+ */
+Nodo expresionOr() :
 {
     Nodo izq;
     Nodo der;
@@ -782,6 +864,14 @@ Nodo factor() :
         {
             // Quitar las comillas del valor
             String val = t.image.substring(1, t.image.length() - 1);
+            return new NodoCadena(val, t.beginLine, t.beginColumn);
+        }
+      | t = <CADENA_VERBATIM>
+        {
+            // Quitar @" y " del valor
+            String val = t.image.substring(2, t.image.length() - 1);
+            // Reemplazar dobles comillas "" por comillas simples "
+            val = val.replace("\"\"", "\"");
             return new NodoCadena(val, t.beginLine, t.beginColumn);
         }
       | t = <CARACTER>

@@ -229,12 +229,13 @@ public class SintacticoTest {
     }
 
     @Test
-    @DisplayName("Error de sintaxis lanza ParseException")
-    void testErrorSintaxis() {
-        // Un programa mal formado debe lanzar ParseException
-        assertThrows(ParseException.class, () -> {
-            parsear("int = ;");
-        });
+    @DisplayName("Error de sintaxis es atrapado por el mecanismo de recuperación")
+    void testErrorSintaxis() throws Exception {
+        // Un programa mal formado ahora no lanza excepción, sino que registra el error sintáctico
+        Analizador parser = new Analizador(new java.io.StringReader("int = ;"));
+        parser.programa();
+        assertTrue(parser.tieneErrores());
+        assertEquals(1, parser.getErroresSintacticos().size());
     }
 
     @Test
@@ -279,6 +280,17 @@ public class SintacticoTest {
             NodoDeclaracion decl = (NodoDeclaracion) prog.getSentencias().get(i);
             assertEquals(tipos[i], decl.getTipoDato());
         }
+    }
+
+    @Test
+    @DisplayName("Parsea declaración con tipo nullable (int?)")
+    void testTipoNullable() throws Exception {
+        NodoPrograma prog = parsear("int? x = null;");
+        assertEquals(1, prog.getSentencias().size());
+
+        NodoDeclaracion decl = (NodoDeclaracion) prog.getSentencias().get(0);
+        assertEquals("int?", decl.getTipoDato());
+        assertEquals("x", decl.getIdentificador());
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -420,6 +432,20 @@ public class SintacticoTest {
         assertInstanceOf(NodoOperacion.class, rel.getIzquierdo());
         NodoOperacion suma = (NodoOperacion) rel.getIzquierdo();
         assertEquals("+", suma.getOperador());
+    }
+
+    @Test
+    @DisplayName("Parsea operador ternario: condicion ? verdadero : falso")
+    void testOperadorTernario() throws Exception {
+        NodoPrograma prog = parsear("int x = (y > 0) ? 1 : 0;");
+
+        NodoDeclaracion decl = (NodoDeclaracion) prog.getSentencias().get(0);
+        assertInstanceOf(NodoTernario.class, decl.getInicializacion());
+
+        NodoTernario ternario = (NodoTernario) decl.getInicializacion();
+        assertInstanceOf(NodoAgrupacion.class, ternario.getCondicion());
+        assertInstanceOf(NodoNumero.class, ternario.getVerdadero());
+        assertInstanceOf(NodoNumero.class, ternario.getFalso());
     }
 
     // ═══════════════════════════════════════════════════════════════

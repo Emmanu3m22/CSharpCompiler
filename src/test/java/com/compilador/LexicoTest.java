@@ -136,9 +136,9 @@ public class LexicoTest {
     }
 
     @Test
-    @DisplayName("Reconoce delimitadores")
+    @DisplayName("Reconoce delimitadores y el operador de interrogación")
     void testDelimitadores() throws Exception {
-        Analizador parser = crearParser("( ) { } [ ] ; , .");
+        Analizador parser = crearParser("( ) { } [ ] ; , . ?");
         assertEquals("(", parser.getNextToken().image);
         assertEquals(")", parser.getNextToken().image);
         assertEquals("{", parser.getNextToken().image);
@@ -148,6 +148,7 @@ public class LexicoTest {
         assertEquals(";", parser.getNextToken().image);
         assertEquals(",", parser.getNextToken().image);
         assertEquals(".", parser.getNextToken().image);
+        assertEquals("?", parser.getNextToken().image);
     }
 
     @Test
@@ -198,10 +199,28 @@ public class LexicoTest {
     @Test
     @DisplayName("Detecta carácter no reconocido como ERROR_LEXICO")
     void testErrorLexico() throws Exception {
-        Analizador parser = crearParser("@");
+        Analizador parser = crearParser("$");
         Token t = parser.getNextToken();
         // El token ERROR_LEXICO captura caracteres inválidos
-        assertEquals("@", t.image);
+        assertEquals("$", t.image);
+    }
+
+    @Test
+    @DisplayName("Reconoce identificadores con prefijo @")
+    void testIdentificadorArroba() throws Exception {
+        Analizador parser = crearParser("@class;");
+        Token t = parser.getNextToken();
+        assertEquals("@class", t.image);
+        assertEquals(AnalizadorConstants.IDENTIFICADOR, t.kind);
+    }
+
+    @Test
+    @DisplayName("Reconoce cadenas verbatim con @")
+    void testCadenaVerbatim() throws Exception {
+        Analizador parser = crearParser("@\"C:\\ruta\\archivo\";");
+        Token t = parser.getNextToken();
+        assertEquals("@\"C:\\ruta\\archivo\"", t.image);
+        assertEquals(AnalizadorConstants.CADENA_VERBATIM, t.kind);
     }
 
     @Test
@@ -225,23 +244,23 @@ public class LexicoTest {
     }
 
     @Test
-    @DisplayName("Agrupa cadenas con símbolos inválidos")
+    @DisplayName("Cadenas que antes eran inválidas ahora son válidas")
     void testCadenaInvalidaCompleta() throws Exception {
         Analizador parser = crearParser("\"Resul$tado: \"");
         Token t = parser.getNextToken();
 
         assertEquals("\"Resul$tado: \"", t.image);
-        assertEquals(AnalizadorConstants.CADENA_INVALIDA, t.kind);
+        assertEquals(AnalizadorConstants.CADENA, t.kind);
     }
 
     @Test
-    @DisplayName("Agrupa cadenas con arroba y numeral inválidos")
+    @DisplayName("Cadenas con arroba y numeral ahora son válidas")
     void testCadenaConVariosSimbolosInvalidos() throws Exception {
         Analizador parser = crearParser("\"Resu@#ltado: \"");
         Token t = parser.getNextToken();
 
         assertEquals("\"Resu@#ltado: \"", t.image);
-        assertEquals(AnalizadorConstants.CADENA_INVALIDA, t.kind);
+        assertEquals(AnalizadorConstants.CADENA, t.kind);
     }
 
     @Test

@@ -374,8 +374,7 @@ public class AplicacionPrincipal extends JFrame {
 
                 // Detectar tokens inválidos según AnalizadorConstants
                 if (t.kind == com.compilador.AnalizadorConstants.ERROR_LEXICO
-                        || t.kind == com.compilador.AnalizadorConstants.IDENTIFICADOR_INVALIDO
-                        || t.kind == com.compilador.AnalizadorConstants.CADENA_INVALIDA) {
+                        || t.kind == com.compilador.AnalizadorConstants.IDENTIFICADOR_INVALIDO) {
                     ErrorLexico error = new ErrorLexico(
                             t.image,
                             "Símbolo no reconocido en el lexema",
