@@ -138,9 +138,6 @@ public class PanelErrores extends JPanel {
         panelErroresLexicos.repaint();
     }
 
-    /**
-     * Carga y muestra los errores sintácticos.
-     */
     public void cargarErroresSintacticos(List<ErrorSintactico> errores) {
         panelErroresSintacticos.removeAll();
         labelCountSint.setText(String.valueOf(errores.size()));
@@ -152,10 +149,41 @@ public class PanelErrores extends JPanel {
             panelErroresSintacticos.add(labelVacio);
         } else {
             for (ErrorSintactico error : errores) {
+                String rawMsg = error.getMensaje() != null ? error.getMensaje() : "";
+                String esperadoLimpio = "";
+                String mensajeLimpio = rawMsg;
+                
+                if (rawMsg.contains("Was expecting:")) {
+                    String[] parts = rawMsg.split("Was expecting:");
+                    esperadoLimpio = parts[1].replaceAll("\n", "").replaceAll("\r", "").replaceAll("    ", " ").trim();
+                    
+                    if (esperadoLimpio.contains("\";\"")) {
+                        esperadoLimpio = ";";
+                        mensajeLimpio = "Falta un punto y coma ';' (se esperaba: ;)";
+                    } else {
+                        mensajeLimpio = "Se esperaba: " + esperadoLimpio;
+                    }
+                } else if (rawMsg.contains("Was expecting one of:")) {
+                    String[] parts = rawMsg.split("Was expecting one of:");
+                    esperadoLimpio = parts[1].replaceAll("\n", "").replaceAll("\r", "").replaceAll("    ", " ").replaceAll("\\.\\.\\.", "").trim();
+                    
+                    if (esperadoLimpio.contains("\";\"")) {
+                        esperadoLimpio = ";";
+                        mensajeLimpio = "Falta un punto y coma ';' (se esperaba: ;)";
+                    } else {
+                        mensajeLimpio = "Se esperaba uno de: " + esperadoLimpio;
+                    }
+                } else if (error.getTokenEsperado() != null && !"...".equals(error.getTokenEsperado())) {
+                    mensajeLimpio = "Se esperaba: " + error.getTokenEsperado();
+                }
+
+                // Usamos HTML para que el mensaje haga wrap (wrap line) si es muy largo
+                String htmlMsg = "<html><p style='width:300px;'>" + 
+                    mensajeLimpio.replace("<", "&lt;").replace(">", "&gt;") + "</p></html>";
+
                 panelErroresSintacticos.add(crearItemError(
                     error.getTokenEncontrado(),
-                    error.getMensaje() + (error.getTokenEsperado() != null ? 
-                        " (esperaba: " + error.getTokenEsperado() + ")" : ""),
+                    htmlMsg,
                     error.getLinea(), error.getColumna(), false));
                 panelErroresSintacticos.add(Box.createVerticalStrut(8));
             }

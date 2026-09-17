@@ -45,16 +45,46 @@ public class Analizador {
     /** 
      * Método para recuperarse de un error sintáctico consumiendo tokens 
      * hasta encontrar un punto de sincronización (como ;, }, case, default o EOF).
+     * Maneja correctamente bloques anidados con llaves.
      */
     void recuperarErrorSintactico() {
         Token t = getToken(1);
-        while (t.kind != PUNTO_COMA && t.kind != LLAVE_DER && t.kind != EOF 
-                && t.kind != CASE && t.kind != DEFAULT_KW) {
+        int nivelLlaves = 0;
+        while (t.kind != EOF) {
+            if (t.kind == LLAVE_IZQ) {
+                nivelLlaves++;
+                getNextToken();
+                t = getToken(1);
+                continue;
+            }
+            if (t.kind == LLAVE_DER) {
+                if (nivelLlaves > 0) {
+                    nivelLlaves--;
+                    getNextToken();
+                    t = getToken(1);
+                    continue;
+                } else {
+                    // Llave de cierre sin apertura: consumirla y salir
+                    getNextToken();
+                    return;
+                }
+            }
+            if (nivelLlaves == 0) {
+                if (t.kind == PUNTO_COMA) {
+                    getNextToken();
+                    return;
+                }
+                if (t.kind == CASE || t.kind == DEFAULT_KW) {
+                    return;
+                }
+                if (t.kind == IF || t.kind == ELSE || t.kind == WHILE || t.kind == FOR || t.kind == DO
+                    || t.kind == SWITCH || t.kind == RETURN || t.kind == BREAK
+                    || t.kind == CONTINUE || esDeclaracion()) {
+                    return;
+                }
+            }
             getNextToken();
             t = getToken(1);
-        }
-        if (t.kind == PUNTO_COMA) {
-            getNextToken();
         }
     }
 
@@ -240,7 +270,14 @@ NodoPrograma programa() :
             recuperarErrorSintactico();
         }
     )*
-    <EOF>
+    try {
+        <EOF>
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, "...", e.getMessage(), linea, columna));
+    }
     { return prog; }
 }
 
@@ -322,10 +359,45 @@ Nodo sentenciaIf() :
 }
 {
     t = <IF>
-    <PAREN_IZQ>
-    condicion = expresion()
-    <PAREN_DER>
-    bloqueThen = bloque()
+    try {
+        <PAREN_IZQ>
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, "(", "Se esperaba '(' después de 'if'", linea, columna));
+    }
+    
+    try {
+        condicion = expresion()
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, "condición", "Error en la condición del if", linea, columna));
+        recuperarErrorSintactico();
+        condicion = null;
+    }
+
+    try {
+        <PAREN_DER>
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, ")", "Se esperaba ')' después de la condición", linea, columna));
+    }
+
+    try {
+        bloqueThen = bloque()
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, "}", "Error en el bloque del if, probablemente falta '}'", linea, columna));
+        bloqueThen = null;
+    }
+
     [
         LOOKAHEAD(1)
         <ELSE>

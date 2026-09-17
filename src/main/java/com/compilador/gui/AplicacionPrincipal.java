@@ -270,24 +270,25 @@ public class AplicacionPrincipal extends JFrame {
 
             // 2. Ejecutar análisis léxico + sintáctico → AST
             NodoPrograma ast = null;
-            // boolean parseOk = true;
             try {
                 ast = parser.programa();
             } catch (ParseException ex) {
-                // parseOk = false;
-                // Capturar información del error y agregarlo a la lista
+                // Capturar error que escapó de la recuperación y agregarlo a la lista
                 Token tokenActual = ex.currentToken;
                 if (tokenActual != null) {
-                    String tokenEsperadoStr = tokenActual.next != null ? tokenActual.next.image : "(desconocido)";
+                    String encontrado = tokenActual.next != null ? tokenActual.next.image : "(desconocido)";
+                    int linea = tokenActual.next != null ? tokenActual.next.beginLine : tokenActual.beginLine;
+                    int columna = tokenActual.next != null ? tokenActual.next.beginColumn : tokenActual.beginColumn;
                     ErrorSintactico error = new ErrorSintactico(
-                            tokenActual.image, // tokenEncontrado
-                            tokenEsperadoStr, // tokenEsperado
-                            ex.getMessage(), // mensaje
-                            tokenActual.beginLine, // linea
-                            tokenActual.beginColumn // columna
+                            encontrado,
+                            "...",
+                            ex.getMessage(),
+                            linea,
+                            columna
                     );
                     parser.getErroresSintacticos().add(error);
                 }
+                // Continuar con el análisis — mostrar todos los errores acumulados
             }
 
             // 3. Recoger errores léxicos y sintácticos

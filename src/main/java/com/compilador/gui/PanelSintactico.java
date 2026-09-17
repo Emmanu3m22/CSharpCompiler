@@ -126,9 +126,6 @@ public class PanelSintactico extends JPanel {
         panelErrores.repaint();
     }
 
-    /**
-     * Crea un item visual elegante para mostrar un error sintáctico con contexto.
-     */
     private JPanel crearItemError(ErrorSintactico error) {
         JPanel itemPanel = new JPanel(new BorderLayout(8, 4));
         itemPanel.setBackground(Colores.FONDO_TABLA_ROW1);
@@ -149,25 +146,51 @@ public class PanelSintactico extends JPanel {
         lblUbicacion.setForeground(Colores.ADVERTENCIA);
         contenido.add(lblUbicacion);
 
+        // Limpiar el mensaje de JavaCC
+        String rawMsg = error.getMensaje() != null ? error.getMensaje() : "";
+        String esperadoLimpio = error.getTokenEsperado();
+        String mensajeLimpio = rawMsg;
+        
+        if (rawMsg.contains("Was expecting:")) {
+            String[] parts = rawMsg.split("Was expecting:");
+            esperadoLimpio = parts[1].replaceAll("\n", "").replaceAll("\r", "").replaceAll("    ", " ").trim();
+            
+            if (esperadoLimpio.contains("\";\"")) {
+                esperadoLimpio = ";";
+                mensajeLimpio = "Falta un punto y coma ';' al final de la instrucción.";
+            } else {
+                mensajeLimpio = "Se encontró un token inesperado.";
+            }
+        } else if (rawMsg.contains("Was expecting one of:")) {
+            String[] parts = rawMsg.split("Was expecting one of:");
+            esperadoLimpio = parts[1].replaceAll("\n", "").replaceAll("\r", "").replaceAll("    ", " ").replaceAll("\\.\\.\\.", "").trim();
+            
+            if (esperadoLimpio.contains("\";\"")) {
+                esperadoLimpio = ";";
+                mensajeLimpio = "Falta un punto y coma ';' al final de la instrucción.";
+            } else {
+                mensajeLimpio = "Se encontró un token inesperado.";
+            }
+        }
+
         // Línea 2: Token encontrado
-        JLabel lblEncontrado = new JLabel("Token encontrado: " + error.getTokenEncontrado());
+        JLabel lblEncontrado = new JLabel("<html><b>Se encontró:</b> <span style='color:#E06C75; font-family:monospace;'>" + 
+            error.getTokenEncontrado().replace("<", "&lt;").replace(">", "&gt;") + "</span></html>");
         lblEncontrado.setFont(Colores.FUENTE_TABLA);
-        lblEncontrado.setForeground(Colores.TEXTO_NORMAL);
         contenido.add(lblEncontrado);
 
-        // Línea 3: Token esperado
-        String esperado = error.getTokenEsperado() != null ? 
-            error.getTokenEsperado() : "(no especificado)";
-        JLabel lblEsperado = new JLabel("Token esperado: " + esperado);
-        lblEsperado.setFont(Colores.FUENTE_TABLA);
-        lblEsperado.setForeground(Colores.ACENTO_LEXICO);
-        contenido.add(lblEsperado);
+        // Línea 3: Token esperado (limpio)
+        if (!"...".equals(esperadoLimpio) && !esperadoLimpio.isEmpty()) {
+            JLabel lblEsperado = new JLabel("<html><b>Se esperaba:</b> <span style='color:#98C379; font-family:monospace;'>" + 
+                esperadoLimpio.replace("<", "&lt;").replace(">", "&gt;") + "</span></html>");
+            lblEsperado.setFont(Colores.FUENTE_TABLA);
+            contenido.add(lblEsperado);
+        }
 
         // Línea 4: Mensaje de error
-        JLabel lblMensaje = new JLabel("Error: " + error.getMensaje());
+        JLabel lblMensaje = new JLabel("<html><p style='width:350px; color:#ABB2BF; margin-top:4px;'>" + 
+            mensajeLimpio.replace("<", "&lt;").replace(">", "&gt;") + "</p></html>");
         lblMensaje.setFont(Colores.FUENTE_NORMAL);
-        lblMensaje.setForeground(Colores.TEXTO_TENUE);
-        lblMensaje.setVerticalAlignment(SwingConstants.TOP);
         contenido.add(lblMensaje);
 
         itemPanel.add(contenido, BorderLayout.CENTER);
