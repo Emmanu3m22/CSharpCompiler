@@ -3,6 +3,8 @@ package com.compilador.gui;
 import javax.swing.*;
 import javax.swing.text.*;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Editor de código con números de línea y resaltado de sintaxis básico.
@@ -14,6 +16,9 @@ public class EditorCodigo extends JPanel {
     private final JTextArea lineas;
     private final JScrollPane scrollPane;
     private final JLabel lblCursor;
+        private final List<Object> resaltadosErrores = new ArrayList<>();
+        private final Highlighter.HighlightPainter pintorError =
+            new DefaultHighlighter.DefaultHighlightPainter(new Color(120, 45, 55));
 
     /** Palabras reservadas del lenguaje para resaltado */
     private static final String[] KEYWORDS = {
@@ -84,6 +89,7 @@ public class EditorCodigo extends JPanel {
             @Override
             public void insertUpdate(javax.swing.event.DocumentEvent e) {
                 SwingUtilities.invokeLater(() -> {
+                    limpiarResaltadoErrores();
                     actualizarLineas();
                     aplicarResaltado();
                 });
@@ -92,6 +98,7 @@ public class EditorCodigo extends JPanel {
             @Override
             public void removeUpdate(javax.swing.event.DocumentEvent e) {
                 SwingUtilities.invokeLater(() -> {
+                    limpiarResaltadoErrores();
                     actualizarLineas();
                     aplicarResaltado();
                 });
@@ -114,6 +121,7 @@ public class EditorCodigo extends JPanel {
      * Establece el texto del editor y actualiza todo.
      */
     public void setCodigo(String codigo) {
+        limpiarResaltadoErrores();
         editor.setText(codigo);
         actualizarLineas();
         aplicarResaltado();
@@ -123,7 +131,63 @@ public class EditorCodigo extends JPanel {
      * Limpia el contenido del editor.
      */
     public void limpiar() {
+        limpiarResaltadoErrores();
         editor.setText("");
+    }
+
+    /**
+     * Resalta con fondo rojo las líneas que contienen errores.
+     */
+    public void marcarLineasConErrores(List<Integer> lineasConError) {
+        limpiarResaltadoErrores();
+        Element raiz = editor.getDocument().getDefaultRootElement();
+
+        for (int linea : lineasConError) {
+            int indiceLinea = linea - 1;
+            if (indiceLinea < 0 || indiceLinea >= raiz.getElementCount()) {
+                continue;
+            }
+
+            Element elementoLinea = raiz.getElement(indiceLinea);
+            int inicio = elementoLinea.getStartOffset();
+            int fin = Math.min(elementoLinea.getEndOffset(), editor.getDocument().getLength());
+            if (inicio < fin) {
+                try {
+                    resaltadosErrores.add(editor.getHighlighter().addHighlight(
+                            inicio, fin, pintorError));
+                } catch (BadLocationException ignored) {
+                    // La línea puede cambiar mientras se actualiza el documento.
+                }
+            }
+        }
+    }
+
+    private void limpiarResaltadoErrores() {
+        Highlighter highlighter = editor.getHighlighter();
+        for (Object resaltado : resaltadosErrores) {
+            highlighter.removeHighlight(resaltado);
+        }
+        resaltadosErrores.clear();
+    }
+
+    /**
+     * Coloca el cursor en una ubicación del código y desplaza el editor hasta ella.
+     */
+    public void irAUbicacion(int linea, int columna) {
+        Element raiz = editor.getDocument().getDefaultRootElement();
+        int indiceLinea = Math.max(0, Math.min(linea - 1, raiz.getElementCount() - 1));
+        Element elementoLinea = raiz.getElement(indiceLinea);
+        int posicion = elementoLinea.getStartOffset() + Math.max(0, columna - 1);
+        posicion = Math.min(posicion, editor.getDocument().getLength());
+
+        editor.requestFocusInWindow();
+        editor.setCaretPosition(posicion);
+        try {
+            Rectangle rectangulo = editor.modelToView2D(posicion).getBounds();
+            editor.scrollRectToVisible(rectangulo);
+        } catch (BadLocationException ignored) {
+            // La posición ya fue acotada al contenido actual del documento.
+        }
     }
 
     /**

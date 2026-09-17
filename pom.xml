@@ -25,6 +25,36 @@
     </dependencies>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Configuración para Eclipse m2e (Language Support for Java en VS Code) -->
+                <plugin>
+                    <groupId>org.eclipse.m2e</groupId>
+                    <artifactId>lifecycle-mapping</artifactId>
+                    <version>1.0.0</version>
+                    <configuration>
+                        <lifecycleMappingMetadata>
+                            <pluginExecutions>
+                                <pluginExecution>
+                                    <pluginExecutionFilter>
+                                        <groupId>org.codehaus.mojo</groupId>
+                                        <artifactId>javacc-maven-plugin</artifactId>
+                                        <versionRange>[3.0.0,)</versionRange>
+                                        <goals>
+                                            <goal>javacc</goal>
+                                        </goals>
+                                    </pluginExecutionFilter>
+                                    <action>
+                                        <ignore />
+                                    </action>
+                                </pluginExecution>
+                            </pluginExecutions>
+                        </lifecycleMappingMetadata>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
         <plugins>
             <!-- Plugin de JavaCC -->
             <plugin>
