@@ -4,7 +4,11 @@ import com.compilador.errores.ErrorLexico;
 
 import javax.swing.*;
 import javax.swing.table.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;

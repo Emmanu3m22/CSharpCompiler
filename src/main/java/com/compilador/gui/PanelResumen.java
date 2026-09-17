@@ -1,7 +1,8 @@
 package com.compilador.gui;
 
 import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
 
 /**
  * Panel de resumen que muestra estadísticas del análisis:
@@ -28,7 +29,8 @@ public class PanelResumen extends JPanel {
         add(titulo, BorderLayout.NORTH);
 
         // ── Panel de métricas ──
-        JPanel metricas = new JPanel(new GridLayout(4, 1, 0, 4));
+        JPanel metricas = new JPanel();
+        metricas.setLayout(new BoxLayout(metricas, BoxLayout.Y_AXIS));
         metricas.setBackground(Colores.FONDO_PANEL);
 
         labelTokens = crearMetrica("Tokens:", "0", Colores.ACENTO_LEXICO);

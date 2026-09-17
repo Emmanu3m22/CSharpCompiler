@@ -6,7 +6,9 @@ import com.compilador.semantic.TablaSimbolos;
 
 import javax.swing.*;
 import javax.swing.table.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
 import java.util.List;
 import java.util.Map;
 

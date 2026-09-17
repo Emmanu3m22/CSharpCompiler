@@ -4,7 +4,12 @@ import com.compilador.errores.ErrorLexico;
 import com.compilador.errores.ErrorSintactico;
 
 import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -173,7 +178,8 @@ public class PanelErrores extends JPanel {
         itemPanel.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         // Lado izquierdo: Icono y contenido
-        JPanel contenido = new JPanel(new GridLayout(3, 1, 0, 3));
+        JPanel contenido = new JPanel();
+        contenido.setLayout(new BoxLayout(contenido, BoxLayout.Y_AXIS));
         contenido.setBackground(Colores.FONDO_TABLA_ROW1);
 
         // Lexema/Token encontrado

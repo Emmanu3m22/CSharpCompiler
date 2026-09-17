@@ -3,7 +3,10 @@ package com.compilador.gui;
 import com.compilador.errores.ErrorSintactico;
 
 import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Insets;
 import java.util.List;
 
 /**
@@ -136,7 +139,8 @@ public class PanelSintactico extends JPanel {
         itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
 
         // Lado izquierdo: Contenido del error
-        JPanel contenido = new JPanel(new GridLayout(4, 1, 0, 4));
+        JPanel contenido = new JPanel();
+        contenido.setLayout(new BoxLayout(contenido, BoxLayout.Y_AXIS));
         contenido.setBackground(Colores.FONDO_TABLA_ROW1);
 
         // Línea 1: Ubicación

@@ -4,7 +4,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -16,6 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
@@ -110,26 +111,34 @@ public class AplicacionPrincipal extends JFrame {
     // ════════════════════════════════════════════════════════════════
 
     private JPanel crearToolbar() {
-        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        JPanel toolbar = new JPanel();
+        toolbar.setLayout(new BoxLayout(toolbar, BoxLayout.X_AXIS));
         toolbar.setBackground(Colores.FONDO_TOOLBAR);
-        toolbar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Colores.BORDE));
+        toolbar.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 0, 1, 0, Colores.BORDE),
+            BorderFactory.createEmptyBorder(6, 8, 6, 8)
+        ));
 
         // Botón Analizar
         btnAnalizar = crearBoton("▶ Analizar", Colores.ACENTO_PRINCIPAL, e -> ejecutarAnalisis());
         toolbar.add(btnAnalizar);
+        toolbar.add(Box.createHorizontalStrut(8));
 
         // Botón Limpiar
         btnLimpiar = crearBoton("✕ Limpiar", Colores.TEXTO_TENUE, e -> limpiarTodo());
         toolbar.add(btnLimpiar);
+        toolbar.add(Box.createHorizontalStrut(8));
 
         // Separador visual
         toolbar.add(crearSeparador());
+        toolbar.add(Box.createHorizontalStrut(8));
 
         // Menú de ejemplos
         JComboBox<String> comboEjemplos = new JComboBox<>(Ejemplos.NOMBRES);
         comboEjemplos.setFont(Colores.FUENTE_NORMAL);
         comboEjemplos.setBackground(Colores.FONDO_PANEL);
         comboEjemplos.setForeground(Colores.TEXTO_NORMAL);
+        comboEjemplos.setMaximumSize(new Dimension(200, 28));
         comboEjemplos.setPreferredSize(new Dimension(200, 28));
         comboEjemplos.addActionListener(e -> {
             int idx = comboEjemplos.getSelectedIndex();
@@ -144,17 +153,21 @@ public class AplicacionPrincipal extends JFrame {
         lblEjemplos.setForeground(Colores.TEXTO_TENUE);
         toolbar.add(lblEjemplos);
         toolbar.add(comboEjemplos);
+        toolbar.add(Box.createHorizontalStrut(8));
 
         // Separador visual
         toolbar.add(crearSeparador());
+        toolbar.add(Box.createHorizontalStrut(8));
 
         // Botón Abrir archivo
         JButton btnAbrir = crearBoton(" Abrir", Colores.TEXTO_TENUE, e -> abrirArchivo());
         toolbar.add(btnAbrir);
+        toolbar.add(Box.createHorizontalStrut(8));
 
         // Botón Guardar
         JButton btnGuardar = crearBoton(" Guardar", Colores.TEXTO_TENUE, e -> guardarArchivo());
         toolbar.add(btnGuardar);
+        toolbar.add(Box.createHorizontalStrut(8));
 
         // Botón Exportar Errores
         JButton btnExportar = crearBoton(" Exportar Errores", Colores.TEXTO_TENUE, e -> exportarErrores());
@@ -200,6 +213,7 @@ public class AplicacionPrincipal extends JFrame {
     private JSeparator crearSeparador() {
         JSeparator sep = new JSeparator(SwingConstants.VERTICAL);
         sep.setPreferredSize(new Dimension(1, 24));
+        sep.setMaximumSize(new Dimension(1, 24));
         sep.setForeground(Colores.BORDE);
         return sep;
     }

@@ -1,8 +1,21 @@
 package com.compilador.gui;
 
 import javax.swing.*;
+import javax.swing.event.CaretEvent;
+import javax.swing.event.CaretListener;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.text.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Insets;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,7 +26,7 @@ import java.util.List;
 public class EditorCodigo extends JPanel {
 
     private final JTextPane editor;
-    private final JTextArea lineas;
+    private final LineNumberGutter lineas;
     private final JScrollPane scrollPane;
     private final JLabel lblCursor;
         private final List<Object> resaltadosErrores = new ArrayList<>();
@@ -43,14 +56,7 @@ public class EditorCodigo extends JPanel {
         editor.setMargin(new Insets(8, 8, 8, 8));
 
         // ── Números de línea ──
-        lineas = new JTextArea("  1 ");
-        lineas.setFont(Colores.FUENTE_CODIGO);
-        lineas.setBackground(Colores.FONDO_LINEAS);
-        lineas.setForeground(Colores.TEXTO_LINEAS);
-        lineas.setEditable(false);
-        lineas.setFocusable(false);
-        lineas.setMargin(new Insets(8, 4, 8, 8));
-        lineas.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, Colores.BORDE));
+        lineas = new LineNumberGutter(editor);
 
         // ── ScrollPane ──
         scrollPane = new JScrollPane(editor);
@@ -69,15 +75,16 @@ public class EditorCodigo extends JPanel {
         lblCursor.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
         add(lblCursor, BorderLayout.SOUTH);
 
-        editor.addCaretListener(new javax.swing.event.CaretListener() {
+        editor.addCaretListener(new CaretListener() {
             @Override
-            public void caretUpdate(javax.swing.event.CaretEvent e) {
+            public void caretUpdate(CaretEvent e) {
                 int pos = e.getDot();
                 try {
                     Element root = editor.getDocument().getDefaultRootElement();
                     int row = root.getElementIndex(pos);
                     int col = pos - root.getElement(row).getStartOffset();
                     lblCursor.setText("Línea " + (row + 1) + ", Columna " + (col + 1));
+                    lineas.repaint();
                 } catch (Exception ex) {
                     lblCursor.setText("Línea 1, Columna 1");
                 }
@@ -85,27 +92,29 @@ public class EditorCodigo extends JPanel {
         });
 
         // ── Listener para actualizar líneas y resaltado ──
-        editor.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+        editor.getDocument().addDocumentListener(new DocumentListener() {
             @Override
-            public void insertUpdate(javax.swing.event.DocumentEvent e) {
-                SwingUtilities.invokeLater(() -> {
-                    limpiarResaltadoErrores();
-                    actualizarLineas();
-                    aplicarResaltado();
-                });
+            public void insertUpdate(DocumentEvent e) {
+                actualizar();
             }
 
             @Override
-            public void removeUpdate(javax.swing.event.DocumentEvent e) {
-                SwingUtilities.invokeLater(() -> {
-                    limpiarResaltadoErrores();
-                    actualizarLineas();
-                    aplicarResaltado();
-                });
+            public void removeUpdate(DocumentEvent e) {
+                actualizar();
             }
 
             @Override
-            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+            public void changedUpdate(DocumentEvent e) {
+                lineas.repaint();
+            }
+            
+            private void actualizar() {
+                SwingUtilities.invokeLater(() -> {
+                    limpiarResaltadoErrores();
+                    aplicarResaltado();
+                    lineas.revalidate();
+                    lineas.repaint();
+                });
             }
         });
     }
@@ -123,8 +132,9 @@ public class EditorCodigo extends JPanel {
     public void setCodigo(String codigo) {
         limpiarResaltadoErrores();
         editor.setText(codigo);
-        actualizarLineas();
         aplicarResaltado();
+        lineas.revalidate();
+        lineas.repaint();
     }
 
     /**
@@ -133,6 +143,8 @@ public class EditorCodigo extends JPanel {
     public void limpiar() {
         limpiarResaltadoErrores();
         editor.setText("");
+        lineas.revalidate();
+        lineas.repaint();
     }
 
     /**
@@ -191,19 +203,73 @@ public class EditorCodigo extends JPanel {
     }
 
     /**
-     * Actualiza la columna de números de línea.
+     * Componente personalizado para dibujar los números de línea alineados.
      */
-    private void actualizarLineas() {
-        String texto = editor.getText();
-        int totalLineas = texto.split("\n", -1).length;
-        StringBuilder sb = new StringBuilder();
-        int anchoDigitos = String.valueOf(totalLineas).length();
-        for (int i = 1; i <= totalLineas; i++) {
-            sb.append(String.format("%" + (anchoDigitos + 1) + "d ", i));
-            if (i < totalLineas)
-                sb.append("\n");
+    private class LineNumberGutter extends JComponent {
+        private final JTextPane textPane;
+        private FontMetrics fm;
+
+        public LineNumberGutter(JTextPane textPane) {
+            this.textPane = textPane;
+            setFont(Colores.FUENTE_CODIGO);
+            fm = getFontMetrics(Colores.FUENTE_CODIGO);
         }
-        lineas.setText(sb.toString());
+
+        @Override
+        public Dimension getPreferredSize() {
+            int lines = getLineCount();
+            int digits = Math.max(3, String.valueOf(lines).length());
+            int width = fm.stringWidth("0") * digits + 16;
+            return new Dimension(width, textPane.getPreferredSize().height);
+        }
+
+        private int getLineCount() {
+            Element root = textPane.getDocument().getDefaultRootElement();
+            return root.getElementCount();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            
+            g2d.setColor(Colores.FONDO_LINEAS);
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            
+            g2d.setColor(Colores.BORDE);
+            g2d.drawLine(getWidth() - 1, 0, getWidth() - 1, getHeight());
+            
+            g2d.setColor(Colores.TEXTO_LINEAS);
+            g2d.setFont(Colores.FUENTE_CODIGO);
+            
+            Rectangle clip = g.getClipBounds();
+            if (clip == null) return;
+            
+            int startOffset = textPane.viewToModel2D(new Point(0, clip.y));
+            int endOffset = textPane.viewToModel2D(new Point(0, clip.y + clip.height));
+            
+            Element root = textPane.getDocument().getDefaultRootElement();
+            int startLine = root.getElementIndex(startOffset);
+            int endLine = root.getElementIndex(endOffset);
+            
+            try {
+                for (int i = startLine; i <= endLine; i++) {
+                    Element line = root.getElement(i);
+                    Rectangle r = textPane.modelToView2D(line.getStartOffset()).getBounds();
+                    
+                    String lineNumber = String.valueOf(i + 1);
+                    int stringWidth = fm.stringWidth(lineNumber);
+                    int x = getWidth() - stringWidth - 8;
+                    int y = r.y + fm.getAscent() + (r.height - fm.getHeight()) / 2;
+                    
+                    g2d.drawString(lineNumber, x, y);
+                }
+            } catch (BadLocationException e) {
+                // Ignorar
+            }
+        }
     }
 
     /**
