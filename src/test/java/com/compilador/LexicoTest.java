@@ -189,12 +189,6 @@ public class LexicoTest {
         assertEquals("false", parser.getNextToken().image);
     }
 
-    @Test
-    @DisplayName("Reconoce Console.WriteLine como un solo token")
-    void testConsoleWriteLine() throws Exception {
-        Analizador parser = crearParser("Console.WriteLine(42);");
-        assertEquals("Console.WriteLine", parser.getNextToken().image);
-    }
 
     @Test
     @DisplayName("Detecta carácter no reconocido como ERROR_LEXICO")

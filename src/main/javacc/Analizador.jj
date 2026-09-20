@@ -90,11 +90,22 @@ public class Analizador {
 
     /** Detecta si el token actual inicia una declaración de variable (tipo de dato). */
     boolean esDeclaracion() {
-        int k = getToken(1).kind;
+        int i = 1;
+        int k = getToken(i).kind;
+        while (k == PUBLIC || k == PRIVATE || k == PROTECTED || k == INTERNAL || k == STATIC || k == VIRTUAL || k == OVERRIDE || k == READONLY || k == CONST) {
+            i++;
+            k = getToken(i).kind;
+        }
+
+        if (getToken(i+1).kind == PUNTO) return false;
+
         return k == INT || k == FLOAT || k == DOUBLE || k == BOOL || k == STRING_T
             || k == CHAR_T || k == VOID || k == BYTE || k == SBYTE || k == SHORT
             || k == USHORT || k == UINT || k == LONG || k == ULONG || k == DECIMAL
-            || k == OBJECT;
+            || k == OBJECT || k == VAR
+            || (k == IDENTIFICADOR && getToken(i+1).kind == IDENTIFICADOR)
+            || (k == IDENTIFICADOR && getToken(i+1).kind == MENOR)
+            || (k == IDENTIFICADOR && getToken(i+1).kind == CORCHETE_IZQ && getToken(i+2).kind == CORCHETE_DER);
     }
 }
 
@@ -126,7 +137,13 @@ SKIP : {
 
 /* --- Palabras reservadas --- */
 TOKEN : {
-    <INT:      "int">
+    <CONST:    "const">
+  | <VAR:      "var">
+  | <READONLY: "readonly">
+  | <VIRTUAL:  "virtual">
+  | <OVERRIDE: "override">
+  | <INTERNAL: "internal">
+  | <INT:      "int">
   | <FLOAT:    "float">
   | <DOUBLE:   "double">
   | <BOOL:     "bool">
@@ -174,12 +191,15 @@ TOKEN : {
   | <STATIC:   "static">
   | <NEW:      "new">
   | <NULL:     "null">
-  | <CONSOLE_WRITELINE: "Console.WriteLine">
+  | <OPERATOR: "operator">
+  | <OUT:      "out">
+  | <REF:      "ref">
 }
 
 /* --- Operadores --- */
 TOKEN : {
-    <SUMA_ASIG:     "+=">
+    <NULL_COALESCING: "??">
+  | <SUMA_ASIG:     "+=">
   | <RESTA_ASIG:    "-=">
   | <MULT_ASIG:     "*=">
   | <DIV_ASIG:      "/=">
@@ -205,6 +225,11 @@ TOKEN : {
   | <DOS_PUNTOS:    ":">
   | <GUION_BAJO:    "_">
   | <INTERROGACION: "?">
+  | <BITWISE_AND:   "&">
+  | <BITWISE_OR:    "|">
+  | <BITWISE_NOT:   "~">
+  | <HASH:          "#">
+  | <DOLLAR:        "$">
 }
 
 /* --- Delimitadores --- */
@@ -222,10 +247,10 @@ TOKEN : {
 
 /* --- Literales --- */
 TOKEN : {
-        <NUMERO_DECIMAL_NEGATIVO: "-" (["0"-"9"])+ "." (["0"-"9"])+ >
-    | <NUMERO_ENTERO_NEGATIVO:  "-" (["0"-"9"])+ >
-    | <NUMERO_ENTERO:            (["0"-"9"])+ >
-    | <NUMERO_DECIMAL:           (["0"-"9"])+ "." (["0"-"9"])+ >
+        <NUMERO_DECIMAL_NEGATIVO: "-" (["0"-"9"])+ "." (["0"-"9"])+ (["F","f","M","m","D","d"])* >
+    | <NUMERO_ENTERO_NEGATIVO:  "-" (["0"-"9"])+ (["L","l","U","u"])* >
+    | <NUMERO_ENTERO:            (["0"-"9"])+ (["L","l","U","u"])* >
+    | <NUMERO_DECIMAL:           (["0"-"9"])+ "." (["0"-"9"])+ (["F","f","M","m","D","d"])* >
     | <CADENA:         "\"" (~["\"","\\"] | "\\" ~[])* "\"" >
     | <CADENA_VERBATIM: "@\"" (~["\""] | "\"\"")* "\"" >
   | <CARACTER:       "'" (~["'","\\"] | "\\" ~[]) "'" >
@@ -295,6 +320,16 @@ Nodo sentencia() :
       | n = sentenciaDoWhile()                            { return n; }
       | n = sentenciaFor()                                { return n; }
       | n = sentenciaSwitch()                             { return n; }
+      | LOOKAHEAD( ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <READONLY> | <CONST> )* 
+                   ( <NAMESPACE> | <USING> | <CLASS> | <INTERFACE> | <ENUM> 
+                   | tipoDato() ( <OPERATOR> | <IDENTIFICADOR> <PAREN_IZQ> ) 
+                   | <VOID> <IDENTIFICADOR> <PAREN_IZQ> 
+                   | <IDENTIFICADOR> <PAREN_IZQ> ) )
+        n = declaracionEstructura()                       { return n; }
+      | LOOKAHEAD( [ <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> ] tipoDato() <IDENTIFICADOR> <LLAVE_IZQ> )
+        n = propiedad()                                   { return n; }
+      | LOOKAHEAD( llamadaMetodo() <PUNTO_COMA> )
+        n = llamadaMetodo() <PUNTO_COMA>                  { return n; }
       | LOOKAHEAD({ esDeclaracion() })
         n = declaracion() <PUNTO_COMA>                   { return n; }
       | LOOKAHEAD(<IDENTIFICADOR> (<INCREMENTO> | <DECREMENTO>))
@@ -302,9 +337,13 @@ Nodo sentencia() :
       | LOOKAHEAD(<IDENTIFICADOR> (<SUMA_ASIG> | <RESTA_ASIG> | <MULT_ASIG> | <DIV_ASIG> | <MOD_ASIG>))
         n = asignacionCompuesta() <PUNTO_COMA>             { return n; }
       | LOOKAHEAD(2) n = asignacion() <PUNTO_COMA>        { return n; }
-      | n = comandoWriteLine() <PUNTO_COMA>               { return n; }
+      | n = sentenciaIncremento() <PUNTO_COMA>            { return n; }
       | n = sentenciaBreak()                              { return n; }
       | n = sentenciaContinue()                           { return n; }
+      | n = sentenciaReturn()                             { return n; }
+      | n = sentenciaThrow()                              { return n; }
+      | n = sentenciaTry()                                { return n; }
+      | <PUNTO_COMA>                                      { return null; }
       | <ERROR_LEXICO>
       |<IDENTIFICADOR_INVALIDO>
         {
@@ -592,25 +631,36 @@ Nodo sentenciaIncremento() :
 }
 
 /**
- * Asignación compuesta: identificador += expresión, -=, *=, /=, %=
+ * Asignación: identificador = expresión o identificador[expr] = expresión
  */
-Nodo asignacionCompuesta() :
+Nodo asignacion() :
 {
-    Token id;
-    Token op;
+    Nodo target;
     Nodo expr;
+    java.util.List<Nodo> indices = new java.util.ArrayList<Nodo>();
 }
 {
-    id = <IDENTIFICADOR>
-    ( op = <SUMA_ASIG> | op = <RESTA_ASIG> | op = <MULT_ASIG> | op = <DIV_ASIG> | op = <MOD_ASIG> )
+    target = llamadaMetodo()
+    (
+        <CORCHETE_IZQ> expr = expresion() <CORCHETE_DER>
+        { indices.add(expr); }
+    )*
+    <ASIGNACION>
     expr = expresion()
     {
-        // Se convierte a: id = id op expr
-        // Extraer el operador base (ej: "+=" -> "+")
-        String opBase = op.image.substring(0, op.image.length() - 1);
-        Nodo izq = new NodoIdentificador(id.image, id.beginLine, id.beginColumn);
-        Nodo operacion = new NodoOperacion(izq, opBase, expr, op.beginLine, op.beginColumn);
-        return new NodoAsignacion(id.image, operacion, id.beginLine, id.beginColumn);
+        String varName = "";
+        if (target instanceof NodoLlamadaMetodo) {
+            varName = ((NodoLlamadaMetodo)target).getIdentificador();
+        } else if (target instanceof NodoIdentificador) {
+            varName = ((NodoIdentificador)target).getNombre();
+        }
+        
+        if (indices.isEmpty()) {
+            return new NodoAsignacion(varName, expr, target.getLinea(), target.getColumna());
+        } else {
+            // Representamos asignación a arreglo
+            return new NodoAsignacion(varName + "[]", expr, target.getLinea(), target.getColumna());
+        }
     }
 }
 
@@ -643,96 +693,250 @@ Nodo sentenciaContinue() :
 }
 
 /**
+ * Sentencia return [expr];
+ */
+Nodo sentenciaReturn() :
+{ Nodo expr = null; Token t; }
+{
+    t = <RETURN> [ expr = expresion() ] <PUNTO_COMA>
+    { return new NodoComando("return", expr, t.beginLine, t.beginColumn); }
+}
+
+/**
+ * Sentencia throw expr;
+ */
+Nodo sentenciaThrow() :
+{ Nodo expr; Token t; }
+{
+    t = <THROW> expr = expresion() <PUNTO_COMA>
+    { return new NodoComando("throw", expr, t.beginLine, t.beginColumn); }
+}
+
+/**
+ * Sentencia try { ... } catch (...) { ... } finally { ... }
+ */
+Nodo sentenciaTry() :
+{
+    Token t;
+    Nodo blqTry, blqCatch = null, blqFinally = null;
+    Token tEx = null, idEx = null;
+}
+{
+    t = <TRY> blqTry = bloque()
+    (
+        <CATCH> [ <PAREN_IZQ> [ tEx = tipoDato() idEx = <IDENTIFICADOR> ] <PAREN_DER> ]
+        blqCatch = bloque()
+    )*
+    [
+        <FINALLY> blqFinally = bloque()
+    ]
+    {
+        return new NodoComando("try", blqTry, t.beginLine, t.beginColumn);
+    }
+}
+
+/**
  * Declaración: tipo identificador [= expresión]
  * Ejemplo: int x; o int x = 5 + 3;
  */
 Nodo declaracion() :
 {
     Token tipo;
-    Token tipoElemento = null;
     Token id;
-    Token tamaño = null;
     Nodo expr = null;
-    boolean esArreglo = false;
-    boolean esNullable = false;
+    java.util.List<Nodo> listaNodos = new java.util.ArrayList<Nodo>();
+    boolean isConst = false;
 }
 {
+    ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <CONST> { isConst = true; } | <READONLY> )*
     tipo = tipoDato()
-    [ <INTERROGACION> { esNullable = true; } ]
-    [ <CORCHETE_IZQ> <CORCHETE_DER> { esArreglo = true; } ]
+    
     id = <IDENTIFICADOR>
     [
         <ASIGNACION>
         (
-            <NEW>
-            tipoElemento = tipoDato()
-            <CORCHETE_IZQ>
-            tamaño = <NUMERO_ENTERO>
-            <CORCHETE_DER>
-            {
-                expr = new NodoArreglo(
-                    tipoElemento.image, tamaño.image,
-                    tipoElemento.beginLine, tipoElemento.beginColumn
-                );
-            }
+            <LLAVE_IZQ> { expr = new NodoArreglo(tipo.image, "0", tipo.beginLine, tipo.beginColumn); }
+            [ listaValoresArreglo() ] <LLAVE_DER>
           | expr = expresion()
         )
     ]
     {
-        String tipoStr = tipo.image;
-        if (esNullable) {
-            tipoStr += "?";
+        NodoDeclaracion nd = new NodoDeclaracion(tipo.image, id.image, expr, tipo.beginLine, tipo.beginColumn);
+        listaNodos.add(nd);
+    }
+    (
+        <COMA> id = <IDENTIFICADOR>
+        { expr = null; }
+        [
+            <ASIGNACION>
+            (
+                <LLAVE_IZQ> { expr = new NodoArreglo(tipo.image, "0", tipo.beginLine, tipo.beginColumn); }
+                [ listaValoresArreglo() ] <LLAVE_DER>
+              | expr = expresion()
+            )
+        ]
+        {
+            NodoDeclaracion nd2 = new NodoDeclaracion(tipo.image, id.image, expr, id.beginLine, id.beginColumn);
+            listaNodos.add(nd2);
         }
-        if (esArreglo) {
-            tipoStr += "[]";
+    )*
+    
+    {
+        if (listaNodos.size() == 1) return listaNodos.get(0);
+        NodoBloque bloqueDecl = new NodoBloque(tipo.beginLine, tipo.beginColumn);
+        for (Nodo n : listaNodos) {
+            bloqueDecl.agregarSentencia(n);
         }
-        return new NodoDeclaracion(
-            tipoStr, id.image, expr,
-            tipo.beginLine, tipo.beginColumn
-        );
+        return bloqueDecl;
     }
 }
 
 /**
- * Asignación: identificador = expresión
- * Ejemplo: x = 10;
+ * Propiedad: tipo identificador { get; set; }
  */
-Nodo asignacion() :
+Nodo propiedad() :
+{
+    Token tipo;
+    Token id;
+}
+{
+    ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <CONST> | <READONLY> )*
+    tipo = tipoDato() id = <IDENTIFICADOR>
+    <LLAVE_IZQ> 
+    ( 
+        [ <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> ] 
+        <IDENTIFICADOR> 
+        ( <PUNTO_COMA> | bloque() ) 
+    )* 
+    <LLAVE_DER>
+    {
+        return new NodoDeclaracion(tipo.image, id.image, null, tipo.beginLine, tipo.beginColumn);
+    }
+}
+
+void listaValoresArreglo() :
+{}
+{
+    expresion() ( <COMA> expresion() )*
+}
+
+/**
+ * Asignación compuesta: identificador += expresión, -=, *=, /=, %=
+ */
+Nodo asignacionCompuesta() :
 {
     Token id;
+    Token op;
     Nodo expr;
 }
 {
     id = <IDENTIFICADOR>
-    <ASIGNACION>
+    ( op = <SUMA_ASIG> | op = <RESTA_ASIG> | op = <MULT_ASIG> | op = <DIV_ASIG> | op = <MOD_ASIG> )
     expr = expresion()
     {
-        return new NodoAsignacion(
-            id.image, expr,
-            id.beginLine, id.beginColumn
-        );
+        String opBase = op.image.substring(0, op.image.length() - 1);
+        Nodo izq = new NodoIdentificador(id.image, id.beginLine, id.beginColumn);
+        Nodo operacion = new NodoOperacion(izq, opBase, expr, op.beginLine, op.beginColumn);
+        return new NodoAsignacion(id.image, operacion, id.beginLine, id.beginColumn);
     }
 }
 
 /**
- * Comando Console.WriteLine(expresión)
+ * Llamada a método genérica o acceso a propiedad: obj.Metodo(args) o obj.Propiedad
  */
-Nodo comandoWriteLine() :
+Nodo llamadaMetodo() :
 {
-    Nodo expr;
     Token t;
+    StringBuilder id = new StringBuilder();
+    java.util.List<Nodo> args = new java.util.ArrayList<Nodo>();
+    boolean isMethod = false;
 }
 {
-    t = <CONSOLE_WRITELINE>
-    <PAREN_IZQ>
-    expr = expresion()
-    <PAREN_DER>
-    {
-        return new NodoComando(
-            "Console.WriteLine", expr,
-            t.beginLine, t.beginColumn
-        );
+    ( t = tipoDatoBase() | t = <BASE> | t = <THIS> )
+    { id.append(t.image); }
+    (
+        <PUNTO> t = <IDENTIFICADOR>
+        { id.append(".").append(t.image); }
+    )*
+    [
+        <PAREN_IZQ>
+        [ args = listaArgumentos() ]
+        <PAREN_DER>
+        { isMethod = true; }
+    ]
+    { 
+        if (isMethod) {
+            return new NodoLlamadaMetodo(id.toString(), args, t != null ? t.beginLine : 0, 0); 
+        } else {
+            return new NodoIdentificador(id.toString(), t != null ? t.beginLine : 0, 0);
+        }
     }
+}
+
+java.util.List<Nodo> listaArgumentos() :
+{
+    java.util.List<Nodo> args = new java.util.ArrayList<Nodo>();
+    Nodo expr;
+}
+{
+    [ <OUT> | <REF> ] expr = expresion() { args.add(expr); }
+    (
+        <COMA> [ <OUT> | <REF> ] expr = expresion() { args.add(expr); }
+    )*
+    { return args; }
+}
+
+/**
+ * Estructuras de clases, namespaces, etc.
+ */
+Nodo declaracionEstructura() :
+{
+    Token t = null;
+    Token id = null;
+    NodoBloque blq = null;
+}
+{
+    (
+        t = <NAMESPACE> id = <IDENTIFICADOR> blq = bloque()
+        { return new NodoEstructura("namespace", id.image, t.beginLine, t.beginColumn); }
+      | t = <USING> id = <IDENTIFICADOR>
+        ( <PUNTO> <IDENTIFICADOR> )* <PUNTO_COMA>
+        { return new NodoEstructura("using", id.image, t.beginLine, t.beginColumn); }
+      | ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <CONST> | <READONLY> )*
+        (
+            t = <CLASS> id = <IDENTIFICADOR> 
+            [ <DOS_PUNTOS> <IDENTIFICADOR> ( <COMA> <IDENTIFICADOR> )* ]
+            blq = bloque()
+            { return new NodoEstructura("class", id.image, t.beginLine, t.beginColumn); }
+          | t = <INTERFACE> id = <IDENTIFICADOR> 
+            [ <DOS_PUNTOS> <IDENTIFICADOR> ( <COMA> <IDENTIFICADOR> )* ]
+            blq = bloque()
+            { return new NodoEstructura("interface", id.image, t.beginLine, t.beginColumn); }
+          | t = <ENUM> id = <IDENTIFICADOR> <LLAVE_IZQ> 
+            [ <IDENTIFICADOR> ( <COMA> <IDENTIFICADOR> )* ] 
+            <LLAVE_DER>
+            { return new NodoEstructura("enum", id.image, t.beginLine, t.beginColumn); }
+          | LOOKAHEAD( tipoDato() <OPERATOR> )
+            tipoDato() <OPERATOR> ( <IGUAL> | <DIFERENTE> | <SUMA> | <RESTA> | <MULT> | <DIV> )
+            <PAREN_IZQ> [ parametros() ] <PAREN_DER> blq = bloque()
+            { return new NodoEstructura("operator", "op", t != null ? t.beginLine : 0, 0); }
+          | LOOKAHEAD( ( <VOID> | tipoDato() ) <IDENTIFICADOR> <PAREN_IZQ> )
+            ( <VOID> | tipoDato() ) id = <IDENTIFICADOR> <PAREN_IZQ> [ parametros() ] <PAREN_DER> ( blq = bloque() | <PUNTO_COMA> )
+            { return new NodoEstructura("method", id.image, id.beginLine, id.beginColumn); }
+          | LOOKAHEAD( <IDENTIFICADOR> <PAREN_IZQ> )
+            id = <IDENTIFICADOR> <PAREN_IZQ> [ parametros() ] <PAREN_DER> 
+            [ <DOS_PUNTOS> ( <BASE> | <THIS> ) <PAREN_IZQ> [ listaArgumentos() ] <PAREN_DER> ]
+            ( blq = bloque() | <PUNTO_COMA> )
+            { return new NodoEstructura("constructor", id.image, id.beginLine, id.beginColumn); }
+        )
+    )
+}
+
+void parametros() :
+{}
+{
+    tipoDato() <IDENTIFICADOR> [ <ASIGNACION> expresion() ] 
+    ( <COMA> tipoDato() <IDENTIFICADOR> [ <ASIGNACION> expresion() ] )*
 }
 
 /* ── Jerarquía de expresiones (de menor a mayor precedencia) ── */
@@ -750,10 +954,8 @@ Nodo expresion() :
 {
     cond = expresionOr()
     [
-        t = <INTERROGACION>
-        verdadero = expresion()
-        <DOS_PUNTOS>
-        falso = expresion()
+        t = <INTERROGACION> verdadero = expresion() <DOS_PUNTOS> falso = expresion()
+      | t = <NULL_COALESCING> verdadero = expresion() { falso = null; }
     ]
     {
         if (t != null) {
@@ -915,11 +1117,53 @@ Nodo factor() :
 {
     Token t;
     Nodo n;
+    Nodo n2 = null;
     Token signo = null;
 }
 {
     (
-        [ signo = <RESTA> ]
+      LOOKAHEAD( llamadaMetodo() <CORCHETE_IZQ> )
+        n = llamadaMetodo() <CORCHETE_IZQ> n2 = expresion() <CORCHETE_DER>
+        { 
+            String varName = "";
+            if (n instanceof NodoLlamadaMetodo) varName = ((NodoLlamadaMetodo)n).getIdentificador();
+            else if (n instanceof NodoIdentificador) varName = ((NodoIdentificador)n).getNombre();
+            return new NodoAccesoArreglo(varName, n2, 0, 0); 
+        }
+      | LOOKAHEAD( llamadaMetodo() ( <INCREMENTO> | <DECREMENTO> ) )
+        n = llamadaMetodo() ( signo = <INCREMENTO> | signo = <DECREMENTO> )
+        {
+            String varName = "";
+            if (n instanceof NodoLlamadaMetodo) varName = ((NodoLlamadaMetodo)n).getIdentificador();
+            else if (n instanceof NodoIdentificador) varName = ((NodoIdentificador)n).getNombre();
+            return new NodoIncremento(varName, signo.image, 0, 0);
+        }
+      | LOOKAHEAD( ( <INCREMENTO> | <DECREMENTO> ) llamadaMetodo() )
+        ( signo = <INCREMENTO> | signo = <DECREMENTO> ) n = llamadaMetodo()
+        {
+            String varName = "";
+            if (n instanceof NodoLlamadaMetodo) varName = ((NodoLlamadaMetodo)n).getIdentificador();
+            else if (n instanceof NodoIdentificador) varName = ((NodoIdentificador)n).getNombre();
+            return new NodoIncremento(varName, signo.image, 0, 0);
+        }
+      | LOOKAHEAD( llamadaMetodo() )
+        n = llamadaMetodo()
+        { return n; }
+      | LOOKAHEAD( <PAREN_IZQ> tipoDato() <PAREN_DER> )
+        <PAREN_IZQ> t = tipoDato() <PAREN_DER> n = factor()
+        { return new NodoCasteo(t.image, n, t.beginLine, t.beginColumn); }
+      | <NEW> t = tipoDato() 
+        (
+            LOOKAHEAD( <CORCHETE_IZQ> )
+            <CORCHETE_IZQ> n = expresion() <CORCHETE_DER>
+            [ <LLAVE_IZQ> [ listaValoresArreglo() ] <LLAVE_DER> ]
+            { return new NodoInstanciacion(t.image, n, t.beginLine, t.beginColumn); }
+          | { java.util.List<Nodo> argList = new java.util.ArrayList<Nodo>(); }
+            [ <PAREN_IZQ> [ argList = listaArgumentos() ] <PAREN_DER> ]
+            [ <LLAVE_IZQ> [ listaValoresArreglo() ] <LLAVE_DER> ]
+            { return new NodoInstanciacion(t.image, argList, t.beginLine, t.beginColumn); }
+        )
+      | [ signo = <RESTA> ]
         (
             t = <NUMERO_ENTERO>
             { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
@@ -934,15 +1178,12 @@ Nodo factor() :
         { return new NodoIdentificador(t.image, t.beginLine, t.beginColumn); }
       | t = <CADENA>
         {
-            // Quitar las comillas del valor
             String val = t.image.substring(1, t.image.length() - 1);
             return new NodoCadena(val, t.beginLine, t.beginColumn);
         }
       | t = <CADENA_VERBATIM>
         {
-            // Quitar @" y " del valor
             String val = t.image.substring(2, t.image.length() - 1);
-            // Reemplazar dobles comillas "" por comillas simples "
             val = val.replace("\"\"", "\"");
             return new NodoCadena(val, t.beginLine, t.beginColumn);
         }
@@ -968,9 +1209,9 @@ Nodo factor() :
 }
 
 /**
- * Reconoce un tipo de dato y devuelve el token.
+ * Reconoce un tipo de dato base y devuelve el token.
  */
-Token tipoDato() :
+Token tipoDatoBase() :
 {
     Token t;
 }
@@ -992,6 +1233,23 @@ Token tipoDato() :
       | t = <ULONG>
       | t = <DECIMAL>
       | t = <OBJECT>
+      | t = <VAR>
+      | t = <IDENTIFICADOR>
     )
+    { return t; }
+}
+
+/**
+ * Reconoce un tipo de dato y devuelve el token.
+ */
+Token tipoDato() :
+{
+    Token t;
+}
+{
+    t = tipoDatoBase()
+    [ <INTERROGACION> { t.image += "?"; } ]
+    [ LOOKAHEAD(2) <MENOR> tipoDato() ( <COMA> tipoDato() )* <MAYOR> { t.image += "<...>"; } ]
+    [ LOOKAHEAD(2) <CORCHETE_IZQ> <CORCHETE_DER> { t.image += "[]"; } ]
     { return t; }
 }

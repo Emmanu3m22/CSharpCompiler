@@ -215,9 +215,9 @@ public class SintacticoTest {
         NodoPrograma prog = parsear("Console.WriteLine(42);");
         assertEquals(1, prog.getSentencias().size());
 
-        NodoComando cmd = (NodoComando) prog.getSentencias().get(0);
-        assertEquals("Console.WriteLine", cmd.getComando());
-        assertInstanceOf(NodoNumero.class, cmd.getArgumento());
+        com.compilador.ast.NodoLlamadaMetodo cmd = (com.compilador.ast.NodoLlamadaMetodo) prog.getSentencias().get(0);
+        assertEquals("Console.WriteLine", cmd.getIdentificador());
+        assertInstanceOf(NodoNumero.class, cmd.getArgumentos().get(0));
     }
 
     @Test
@@ -226,6 +226,29 @@ public class SintacticoTest {
         String codigo = "int x = 5;\nint y = 10;\nx = x + y;\nConsole.WriteLine(x);";
         NodoPrograma prog = parsear(codigo);
         assertEquals(4, prog.getSentencias().size());
+    }
+
+    @Test
+    @DisplayName("Test de integración: parsea LearnCSharp.cs")
+    void testLearnCSharp() throws Exception {
+        java.io.File file = new java.io.File("LearnCSharp.cs");
+        if (file.exists()) {
+            java.util.Scanner scanner = new java.util.Scanner(file);
+            String codigo = scanner.useDelimiter("\\A").next();
+            scanner.close();
+            
+            Analizador parser = new Analizador(new java.io.StringReader(codigo));
+            NodoPrograma prog = parser.programa();
+            org.junit.jupiter.api.Assertions.assertNotNull(prog, "El programa no debería ser null");
+            
+            if (!parser.getErroresSintacticos().isEmpty()) {
+                System.out.println("Errores sintacticos en LearnCSharp:");
+                for (com.compilador.errores.ErrorSintactico err : parser.getErroresSintacticos()) {
+                    System.out.println(err.getLinea() + ":" + err.getColumna() + " -> " + err.getMensaje());
+                }
+            }
+            assertEquals(0, parser.getErroresSintacticos().size(), "El archivo LearnCSharp.cs contiene errores sintácticos");
+        }
     }
 
     @Test
