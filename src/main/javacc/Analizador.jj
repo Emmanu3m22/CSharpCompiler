@@ -31,6 +31,10 @@ public class Analizador {
     private List<ErrorSintactico> erroresSintacticos = new ArrayList<ErrorSintactico>();
 
     public List<ErrorLexico> getErroresLexicos() {
+        if (!AnalizadorTokenManager.lexErrors.isEmpty()) {
+            erroresLexicos.addAll(AnalizadorTokenManager.lexErrors);
+            AnalizadorTokenManager.lexErrors.clear();
+        }
         return erroresLexicos;
     }
 
@@ -39,7 +43,7 @@ public class Analizador {
     }
 
     public boolean tieneErrores() {
-        return !erroresLexicos.isEmpty() || !erroresSintacticos.isEmpty();
+        return !erroresLexicos.isEmpty() || !erroresSintacticos.isEmpty() || !AnalizadorTokenManager.lexErrors.isEmpty();
     }
 
     /** 
@@ -106,6 +110,26 @@ public class Analizador {
             || (k == IDENTIFICADOR && getToken(i+1).kind == IDENTIFICADOR)
             || (k == IDENTIFICADOR && getToken(i+1).kind == MENOR)
             || (k == IDENTIFICADOR && getToken(i+1).kind == CORCHETE_IZQ && getToken(i+2).kind == CORCHETE_DER);
+    }
+
+    /**
+     * Recuperación fina: avanza hasta encontrar una llave '{' o un ';' 
+     * ideal para usar cuando falla la cabecera de un método o clase.
+     */
+    void recuperarHastaLlave(ParseException e, String mensajeEsperado) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        
+        // Mejorar el mensaje si es provisto
+        String mensaje = mensajeEsperado != null ? mensajeEsperado : "Error de sintaxis: " + e.getMessage();
+        erroresSintacticos.add(new ErrorSintactico(encontrado, "...", mensaje, linea, columna));
+        
+        Token err = getToken(1);
+        while (err.kind != LLAVE_IZQ && err.kind != PUNTO_COMA && err.kind != EOF) {
+            getNextToken();
+            err = getToken(1);
+        }
     }
 }
 
@@ -228,8 +252,6 @@ TOKEN : {
   | <BITWISE_AND:   "&">
   | <BITWISE_OR:    "|">
   | <BITWISE_NOT:   "~">
-  | <HASH:          "#">
-  | <DOLLAR:        "$">
 }
 
 /* --- Delimitadores --- */
@@ -258,15 +280,29 @@ TOKEN : {
 
 /* --- Identificadores (debe ir DESPUÉS de las palabras reservadas) --- */
 TOKEN : {
-        <IDENTIFICADOR_INVALIDO: ("@")? (["a"-"z","A"-"Z","_"]) (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","?"])*
-            (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","0"-"9","a"-"z","A"-"Z","_","?"])
-            (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","?"])* >
-    | <IDENTIFICADOR: ("@")? (["a"-"z","A"-"Z","_"]) (["a"-"z","A"-"Z","0"-"9","_"])* >
+    <IDENTIFICADOR: ("@")? (["a"-"z","A"-"Z","_"]) (["a"-"z","A"-"Z","0"-"9","_"])* >
 }
 
-/* --- Token especial para capturar errores léxicos --- */
-TOKEN : {
-    <ERROR_LEXICO: ~[] >
+TOKEN_MGR_DECLS : {
+    public static java.util.List<com.compilador.errores.ErrorLexico> lexErrors = new java.util.ArrayList<com.compilador.errores.ErrorLexico>();
+}
+
+/* --- Ignorar errores léxicos para que el parser no los reciba --- */
+SKIP : {
+    <IDENTIFICADOR_INVALIDO: ("@")? (["a"-"z","A"-"Z","_"]) (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","?"])*
+            (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","0"-"9","a"-"z","A"-"Z","_","?"])
+            (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","?"])* >
+    {
+        lexErrors.add(new com.compilador.errores.ErrorLexico(
+            image.toString(), "Identificador inválido", input_stream.getEndLine(), input_stream.getEndColumn()
+        ));
+    }
+  | <ERROR_LEXICO: ~[]>
+    {
+        lexErrors.add(new com.compilador.errores.ErrorLexico(
+            image.toString(), "Símbolo no reconocido en el lexema", input_stream.getEndLine(), input_stream.getEndColumn()
+        ));
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -322,9 +358,11 @@ Nodo sentencia() :
       | n = sentenciaSwitch()                             { return n; }
       | LOOKAHEAD( ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <READONLY> | <CONST> )* 
                    ( <NAMESPACE> | <USING> | <CLASS> | <INTERFACE> | <ENUM> 
-                   | tipoDato() ( <OPERATOR> | <IDENTIFICADOR> <PAREN_IZQ> ) 
-                   | <VOID> <IDENTIFICADOR> <PAREN_IZQ> 
-                   | <IDENTIFICADOR> <PAREN_IZQ> ) )
+                   | tipoDato() <OPERATOR> 
+                   | tipoDato() <IDENTIFICADOR> <PAREN_IZQ> 
+                   | <VOID> <IDENTIFICADOR> 
+                   | <IDENTIFICADOR> <PAREN_IZQ> 
+                   | <PAREN_IZQ> ) )
         n = declaracionEstructura()                       { return n; }
       | LOOKAHEAD( [ <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> ] tipoDato() <IDENTIFICADOR> <LLAVE_IZQ> )
         n = propiedad()                                   { return n; }
@@ -344,15 +382,6 @@ Nodo sentencia() :
       | n = sentenciaThrow()                              { return n; }
       | n = sentenciaTry()                                { return n; }
       | <PUNTO_COMA>                                      { return null; }
-      | <ERROR_LEXICO>
-      |<IDENTIFICADOR_INVALIDO>
-        {
-            Token t = getToken(0);
-            erroresLexicos.add(new ErrorLexico(
-                t.image, "Símbolo no reconocido en el lexema", t.beginLine, t.beginColumn
-            ));
-            return null;
-        }
     )
 }
 
@@ -904,30 +933,74 @@ Nodo declaracionEstructura() :
         { return new NodoEstructura("using", id.image, t.beginLine, t.beginColumn); }
       | ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <CONST> | <READONLY> )*
         (
-            t = <CLASS> id = <IDENTIFICADOR> 
-            [ <DOS_PUNTOS> <IDENTIFICADOR> ( <COMA> <IDENTIFICADOR> )* ]
+            t = <CLASS> 
+            (
+                try {
+                    id = <IDENTIFICADOR> [ <DOS_PUNTOS> <IDENTIFICADOR> ( <COMA> <IDENTIFICADOR> )* ]
+                } catch (ParseException e) {
+                    recuperarHastaLlave(e, "Se esperaba el nombre de la clase o herencia válida");
+                }
+            )
             blq = bloque()
-            { return new NodoEstructura("class", id.image, t.beginLine, t.beginColumn); }
-          | t = <INTERFACE> id = <IDENTIFICADOR> 
-            [ <DOS_PUNTOS> <IDENTIFICADOR> ( <COMA> <IDENTIFICADOR> )* ]
+            { return new NodoEstructura("class", id != null ? id.image : "error", t.beginLine, t.beginColumn); }
+          | t = <INTERFACE> 
+            (
+                try {
+                    id = <IDENTIFICADOR> [ <DOS_PUNTOS> <IDENTIFICADOR> ( <COMA> <IDENTIFICADOR> )* ]
+                } catch (ParseException e) {
+                    recuperarHastaLlave(e, "Se esperaba el nombre de la interfaz o herencia válida");
+                }
+            )
             blq = bloque()
-            { return new NodoEstructura("interface", id.image, t.beginLine, t.beginColumn); }
-          | t = <ENUM> id = <IDENTIFICADOR> <LLAVE_IZQ> 
+            { return new NodoEstructura("interface", id != null ? id.image : "error", t.beginLine, t.beginColumn); }
+          | t = <ENUM> 
+            (
+                try {
+                    id = <IDENTIFICADOR> 
+                } catch (ParseException e) {
+                    recuperarHastaLlave(e, "Se esperaba el nombre del enumerador");
+                }
+            )
+            <LLAVE_IZQ> 
             [ <IDENTIFICADOR> ( <COMA> <IDENTIFICADOR> )* ] 
             <LLAVE_DER>
-            { return new NodoEstructura("enum", id.image, t.beginLine, t.beginColumn); }
+            { return new NodoEstructura("enum", id != null ? id.image : "error", t.beginLine, t.beginColumn); }
           | LOOKAHEAD( tipoDato() <OPERATOR> )
             tipoDato() <OPERATOR> ( <IGUAL> | <DIFERENTE> | <SUMA> | <RESTA> | <MULT> | <DIV> )
             <PAREN_IZQ> [ parametros() ] <PAREN_DER> blq = bloque()
             { return new NodoEstructura("operator", "op", t != null ? t.beginLine : 0, 0); }
-          | LOOKAHEAD( ( <VOID> | tipoDato() ) <IDENTIFICADOR> <PAREN_IZQ> )
-            ( <VOID> | tipoDato() ) id = <IDENTIFICADOR> <PAREN_IZQ> [ parametros() ] <PAREN_DER> ( blq = bloque() | <PUNTO_COMA> )
-            { return new NodoEstructura("method", id.image, id.beginLine, id.beginColumn); }
-          | LOOKAHEAD( <IDENTIFICADOR> <PAREN_IZQ> )
-            id = <IDENTIFICADOR> <PAREN_IZQ> [ parametros() ] <PAREN_DER> 
-            [ <DOS_PUNTOS> ( <BASE> | <THIS> ) <PAREN_IZQ> [ listaArgumentos() ] <PAREN_DER> ]
+          | LOOKAHEAD( ( <VOID> | tipoDato() ) <IDENTIFICADOR> )
+            ( <VOID> | tipoDato() ) 
+            (
+                try {
+                    id = <IDENTIFICADOR> <PAREN_IZQ> [ parametros() ] <PAREN_DER> 
+                } catch (ParseException e) {
+                    recuperarHastaLlave(e, "Se esperaba el nombre del método y sus parámetros");
+                }
+            )
             ( blq = bloque() | <PUNTO_COMA> )
-            { return new NodoEstructura("constructor", id.image, id.beginLine, id.beginColumn); }
+            { return new NodoEstructura("method", id != null ? id.image : "error", id != null ? id.beginLine : 0, id != null ? id.beginColumn : 0); }
+          | LOOKAHEAD( <IDENTIFICADOR> <PAREN_IZQ> )
+            (
+                try {
+                    id = <IDENTIFICADOR> <PAREN_IZQ> [ parametros() ] <PAREN_DER> 
+                    [ <DOS_PUNTOS> ( <BASE> | <THIS> ) <PAREN_IZQ> [ listaArgumentos() ] <PAREN_DER> ]
+                } catch (ParseException e) {
+                    recuperarHastaLlave(e, "Se esperaba la firma del constructor");
+                }
+            )
+            ( blq = bloque() | <PUNTO_COMA> )
+            { return new NodoEstructura("constructor", id != null ? id.image : "error", id != null ? id.beginLine : 0, id != null ? id.beginColumn : 0); }
+          | LOOKAHEAD( <PAREN_IZQ> )
+            (
+                try {
+                    <PAREN_IZQ> [ parametros() ] <PAREN_DER> 
+                } catch (ParseException e) {
+                    recuperarHastaLlave(e, "Se esperaba la firma del método o constructor");
+                }
+            )
+            ( blq = bloque() | <PUNTO_COMA> )
+            { return new NodoEstructura("method", "error", t != null ? t.beginLine : 0, t != null ? t.beginColumn : 0); }
         )
     )
 }
