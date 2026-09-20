@@ -1013,4 +1013,50 @@ public class SintacticoTest {
         assertEquals("2", ((NodoNumero) caso2.getValor()).getValor());
         assertEquals(1, caso2.getSentencias().size()); // break
     }
+
+    @Test
+    @DisplayName("Parsea CasosAvanzados exitosamente (propiedades, interpolación, foreach, try/catch/throw, flecha lambda)")
+    void testCasosAvanzados() throws Exception {
+        String codigo = "namespace DocumentacionErrores\n" +
+            "{\n" +
+            "    public class CasosAvanzados\n" +
+            "    {\n" +
+            "        public int Edad { get; set; }\n" +
+            "\n" +
+            "        public void GenerarNuevosErrores()\n" +
+            "        {\n" +
+            "            string mensaje = $\"La edad es {Edad}\";\n" +
+            "\n" +
+            "            foreach (int numero in arreglo)\n" +
+            "            {\n" +
+            "                numero++;\n" +
+            "            }\n" +
+            "\n" +
+            "            try\n" +
+            "            {\n" +
+            "                int division = 10 / 0;\n" +
+            "            }\n" +
+            "            catch\n" +
+            "            {\n" +
+            "                throw;\n" +
+            "            }\n" +
+            "            finally\n" +
+            "            {\n" +
+            "                mensaje = \"Finalizado\";\n" +
+            "            }\n" +
+            "\n" +
+            "            int Multiplicar(int a, int b) => a * b;\n" +
+            "        }\n" +
+            "    }\n" +
+            "}";
+
+        Analizador parser = new Analizador(new StringReader(codigo));
+        NodoPrograma prog = parser.programa();
+
+        assertNotNull(prog, "El programa no debe ser nulo");
+        assertEquals(0, parser.getErroresSintacticos().size(), 
+            "No debe haber errores sintácticos. Encontrados: " + parser.getErroresSintacticos());
+        assertEquals(0, parser.getErroresLexicos().size(), 
+            "No debe haber errores léxicos. Encontrados: " + parser.getErroresLexicos());
+    }
 }

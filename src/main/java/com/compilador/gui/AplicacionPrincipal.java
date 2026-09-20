@@ -91,7 +91,7 @@ public class AplicacionPrincipal extends JFrame {
         editor = new EditorCodigo();
         tablaTokens = new TablaTokens();
         panelErrores = new PanelErrores((linea, columna) -> editor.irAUbicacion(linea, columna));
-        panelSintactico = new PanelSintactico();
+        panelSintactico = new PanelSintactico((linea, columna) -> editor.irAUbicacion(linea, columna));
         panelResumen = new PanelResumen();
 
         // ── Ensamblar layout ──
@@ -573,7 +573,10 @@ public class AplicacionPrincipal extends JFrame {
                 if (!ultimosErroresLexicos.isEmpty()) {
                     sb.append("--- ERRORES LÉXICOS ---\n");
                     for (ErrorLexico e : ultimosErroresLexicos) {
-                        sb.append(e.toString()).append("\n");
+                        com.compilador.errores.FormateadorErrores.ErrorFormateado info = 
+                            com.compilador.errores.FormateadorErrores.formatearLexico(e);
+                        sb.append(String.format("[Línea %d, Columna %d] %s: %s (Carácter: '%s')\n  💡 Sugerencia: %s\n",
+                                e.getLinea(), e.getColumna(), info.getTitulo(), info.getMensaje(), e.getLexema(), info.getSugerencia()));
                     }
                     sb.append("\n");
                 }
@@ -581,7 +584,17 @@ public class AplicacionPrincipal extends JFrame {
                 if (!ultimosErroresSintacticos.isEmpty()) {
                     sb.append("--- ERRORES SINTÁCTICOS ---\n");
                     for (ErrorSintactico e : ultimosErroresSintacticos) {
-                        sb.append(e.toString()).append("\n");
+                        com.compilador.errores.FormateadorErrores.ErrorFormateado info = 
+                            com.compilador.errores.FormateadorErrores.formatearSintactico(e);
+                        sb.append(String.format("[Línea %d, Columna %d] %s: %s (Token: '%s')",
+                                e.getLinea(), e.getColumna(), info.getTitulo(), info.getMensaje(), e.getTokenEncontrado()));
+                        if (info.getTokenEsperado() != null && !info.getTokenEsperado().isEmpty()) {
+                            sb.append(" [Se esperaba: ").append(info.getTokenEsperado()).append("]");
+                        }
+                        if (info.getSugerencia() != null && !info.getSugerencia().isEmpty()) {
+                            sb.append("\n  💡 Sugerencia: ").append(info.getSugerencia());
+                        }
+                        sb.append("\n");
                     }
                     sb.append("\n");
                 }

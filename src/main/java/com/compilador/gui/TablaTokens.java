@@ -144,12 +144,26 @@ public class TablaTokens extends JPanel {
             }
         }
 
-        // Agregar tokens a la tabla
+        // Cargar tokens en lote para máxima velocidad
+        java.util.Vector<java.util.Vector<Object>> data = new java.util.Vector<>(tokens.size());
         for (String[] token : tokens) {
-            modelo.addRow(token);
+            java.util.Vector<Object> row = new java.util.Vector<>(4);
+            row.add(token[0]);
+            row.add(token[1]);
+            row.add(token[2]);
+            row.add(token[3]);
+            data.add(row);
         }
+        java.util.Vector<String> colNames = new java.util.Vector<>(java.util.Arrays.asList(COLUMNAS));
+        modelo.setDataVector(data, colNames);
+
+        // Restaurar anchos de columna tras setDataVector
+        tabla.getColumnModel().getColumn(0).setPreferredWidth(150);
+        tabla.getColumnModel().getColumn(1).setPreferredWidth(140);
+        tabla.getColumnModel().getColumn(2).setPreferredWidth(50);
+        tabla.getColumnModel().getColumn(3).setPreferredWidth(60);
+
         labelConteo.setText(tokens.size() + " token" + (tokens.size() != 1 ? "s" : ""));
-        tabla.repaint();
     }
 
     /**

@@ -31,9 +31,9 @@ public class Analizador {
     private List<ErrorSintactico> erroresSintacticos = new ArrayList<ErrorSintactico>();
 
     public List<ErrorLexico> getErroresLexicos() {
-        if (!AnalizadorTokenManager.lexErrors.isEmpty()) {
-            erroresLexicos.addAll(AnalizadorTokenManager.lexErrors);
-            AnalizadorTokenManager.lexErrors.clear();
+        if (token_source != null && !token_source.lexErrors.isEmpty()) {
+            erroresLexicos.addAll(token_source.lexErrors);
+            token_source.lexErrors.clear();
         }
         return erroresLexicos;
     }
@@ -43,7 +43,7 @@ public class Analizador {
     }
 
     public boolean tieneErrores() {
-        return !erroresLexicos.isEmpty() || !erroresSintacticos.isEmpty() || !AnalizadorTokenManager.lexErrors.isEmpty();
+        return !erroresLexicos.isEmpty() || !erroresSintacticos.isEmpty() || (token_source != null && !token_source.lexErrors.isEmpty());
     }
 
     /** 
@@ -192,6 +192,7 @@ TOKEN : {
   | <CASE:     "case">
   | <DEFAULT_KW:"default">
   | <FOREACH:  "foreach">
+  | <IN:       "in">
   | <BREAK:    "break">
   | <CONTINUE: "continue">
   | <THIS:     "this">
@@ -222,7 +223,8 @@ TOKEN : {
 
 /* --- Operadores --- */
 TOKEN : {
-    <NULL_COALESCING: "??">
+    <FLECHA:          "=>">
+  | <NULL_COALESCING: "??">
   | <SUMA_ASIG:     "+=">
   | <RESTA_ASIG:    "-=">
   | <MULT_ASIG:     "*=">
@@ -252,6 +254,8 @@ TOKEN : {
   | <BITWISE_AND:   "&">
   | <BITWISE_OR:    "|">
   | <BITWISE_NOT:   "~">
+  | <HASH:          "#">
+  | <DOLLAR:        "$">
 }
 
 /* --- Delimitadores --- */
@@ -273,6 +277,7 @@ TOKEN : {
     | <NUMERO_ENTERO_NEGATIVO:  "-" (["0"-"9"])+ (["L","l","U","u"])* >
     | <NUMERO_ENTERO:            (["0"-"9"])+ (["L","l","U","u"])* >
     | <NUMERO_DECIMAL:           (["0"-"9"])+ "." (["0"-"9"])+ (["F","f","M","m","D","d"])* >
+    | <CADENA_INTERPOLADA: ("$" "\"" (~["\"","\\"] | "\\" ~[])* "\"") | ("$@\"" (~["\""] | "\"\"")* "\"") | ("@$\"" (~["\""] | "\"\"")* "\"") >
     | <CADENA:         "\"" (~["\"","\\"] | "\\" ~[])* "\"" >
     | <CADENA_VERBATIM: "@\"" (~["\""] | "\"\"")* "\"" >
   | <CARACTER:       "'" (~["'","\\"] | "\\" ~[]) "'" >
@@ -284,11 +289,11 @@ TOKEN : {
 }
 
 TOKEN_MGR_DECLS : {
-    public static java.util.List<com.compilador.errores.ErrorLexico> lexErrors = new java.util.ArrayList<com.compilador.errores.ErrorLexico>();
+    public java.util.List<com.compilador.errores.ErrorLexico> lexErrors = new java.util.ArrayList<com.compilador.errores.ErrorLexico>();
 }
 
-/* --- Ignorar errores léxicos para que el parser no los reciba --- */
-SKIP : {
+/* --- Capturar errores léxicos como tokens para inspección y tests --- */
+TOKEN : {
     <IDENTIFICADOR_INVALIDO: ("@")? (["a"-"z","A"-"Z","_"]) (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","?"])*
             (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","0"-"9","a"-"z","A"-"Z","_","?"])
             (~[" ","\t","\n","\r","=","+","-","*","/","%","!","<",">","&","|","^",":","(",")","{","}","[","]",";",",",".","\"","'","?"])* >
@@ -355,7 +360,11 @@ Nodo sentencia() :
       | n = sentenciaWhile()                              { return n; }
       | n = sentenciaDoWhile()                            { return n; }
       | n = sentenciaFor()                                { return n; }
+      | n = sentenciaForeach()                            { return n; }
       | n = sentenciaSwitch()                             { return n; }
+      | LOOKAHEAD( ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <READONLY> | <CONST> )* 
+                   tipoDato() <IDENTIFICADOR> ( <LLAVE_IZQ> | <FLECHA> ) )
+        n = propiedad()                                   { return n; }
       | LOOKAHEAD( ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <READONLY> | <CONST> )* 
                    ( <NAMESPACE> | <USING> | <CLASS> | <INTERFACE> | <ENUM> 
                    | tipoDato() <OPERATOR> 
@@ -364,8 +373,6 @@ Nodo sentencia() :
                    | <IDENTIFICADOR> <PAREN_IZQ> 
                    | <PAREN_IZQ> ) )
         n = declaracionEstructura()                       { return n; }
-      | LOOKAHEAD( [ <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> ] tipoDato() <IDENTIFICADOR> <LLAVE_IZQ> )
-        n = propiedad()                                   { return n; }
       | LOOKAHEAD( llamadaMetodo() <PUNTO_COMA> )
         n = llamadaMetodo() <PUNTO_COMA>                  { return n; }
       | LOOKAHEAD({ esDeclaracion() })
@@ -382,6 +389,8 @@ Nodo sentencia() :
       | n = sentenciaThrow()                              { return n; }
       | n = sentenciaTry()                                { return n; }
       | <PUNTO_COMA>                                      { return null; }
+      | <ERROR_LEXICO>                                    { return null; }
+      | <IDENTIFICADOR_INVALIDO>                          { return null; }
     )
 }
 
@@ -487,14 +496,36 @@ Nodo sentenciaIf() :
 Nodo sentenciaWhile() :
 {
     Token t;
-    Nodo condicion;
-    NodoBloque cuerpo;
+    Nodo condicion = null;
+    NodoBloque cuerpo = null;
 }
 {
     t = <WHILE>
-    <PAREN_IZQ>
-    condicion = expresion()
-    <PAREN_DER>
+    try {
+        <PAREN_IZQ>
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, "(", "Se esperaba '(' después de 'while'", linea, columna));
+    }
+    try {
+        condicion = expresion()
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, "condición", "Error en la condición del while", linea, columna));
+        recuperarErrorSintactico();
+    }
+    try {
+        <PAREN_DER>
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, ")", "Se esperaba ')' después de la condición del while", linea, columna));
+    }
     cuerpo = bloque()
     {
         return new NodoWhile(condicion, cuerpo,
@@ -536,11 +567,18 @@ Nodo sentenciaFor() :
     Nodo init = null;
     Nodo condicion = null;
     Nodo actualizacion = null;
-    NodoBloque cuerpo;
+    NodoBloque cuerpo = null;
 }
 {
     t = <FOR>
-    <PAREN_IZQ>
+    try {
+        <PAREN_IZQ>
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, "(", "Se esperaba '(' después de 'for'", linea, columna));
+    }
 
     /* Inicialización (opcional) */
     [
@@ -562,11 +600,49 @@ Nodo sentenciaFor() :
       | actualizacion = asignacion()
     ]
 
-    <PAREN_DER>
+    try {
+        <PAREN_DER>
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, ")", "Se esperaba ')' al final del encabezado for", linea, columna));
+    }
     cuerpo = bloque()
     {
         return new NodoFor(init, condicion, actualizacion, cuerpo,
             t.beginLine, t.beginColumn);
+    }
+}
+
+/**
+ * Sentencia foreach: foreach (tipo id in coleccion) bloque
+ */
+Nodo sentenciaForeach() :
+{
+    Token t;
+    Token tipo;
+    Token id;
+    Nodo coleccion = null;
+    NodoBloque cuerpo = null;
+}
+{
+    t = <FOREACH>
+    <PAREN_IZQ>
+    tipo = tipoDato()
+    id = <IDENTIFICADOR>
+    <IN>
+    coleccion = expresion()
+    <PAREN_DER>
+    cuerpo = bloque()
+    {
+        return new NodoFor(
+            new NodoDeclaracion(tipo.image, id.image, null, tipo.beginLine, tipo.beginColumn),
+            coleccion,
+            null,
+            cuerpo,
+            t.beginLine, t.beginColumn
+        );
     }
 }
 
@@ -580,16 +656,37 @@ Nodo sentenciaFor() :
 Nodo sentenciaSwitch() :
 {
     Token t;
-    Nodo expr;
+    Nodo expr = null;
     java.util.List<NodoCaso> casos = new java.util.ArrayList<NodoCaso>();
     NodoCaso caso;
 }
 {
     t = <SWITCH>
-    <PAREN_IZQ>
+    try {
+        <PAREN_IZQ>
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, "(", "Se esperaba '(' después de 'switch'", linea, columna));
+    }
     expr = expresion()
-    <PAREN_DER>
-    <LLAVE_IZQ>
+    try {
+        <PAREN_DER>
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, ")", "Se esperaba ')' después de la expresión del switch", linea, columna));
+    }
+    try {
+        <LLAVE_IZQ>
+    } catch (ParseException e) {
+        String encontrado = e.currentToken.next != null ? e.currentToken.next.image : "EOF";
+        int linea = e.currentToken.next != null ? e.currentToken.next.beginLine : e.currentToken.beginLine;
+        int columna = e.currentToken.next != null ? e.currentToken.next.beginColumn : e.currentToken.beginColumn;
+        erroresSintacticos.add(new ErrorSintactico(encontrado, "{", "Se esperaba '{' para abrir el bloque del switch", linea, columna));
+    }
     (
         caso = casoSwitch()
         { casos.add(caso); }
@@ -735,9 +832,9 @@ Nodo sentenciaReturn() :
  * Sentencia throw expr;
  */
 Nodo sentenciaThrow() :
-{ Nodo expr; Token t; }
+{ Nodo expr = null; Token t; }
 {
-    t = <THROW> expr = expresion() <PUNTO_COMA>
+    t = <THROW> [ expr = expresion() ] <PUNTO_COMA>
     { return new NodoComando("throw", expr, t.beginLine, t.beginColumn); }
 }
 
@@ -780,7 +877,7 @@ Nodo declaracion() :
     ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <CONST> { isConst = true; } | <READONLY> )*
     tipo = tipoDato()
     
-    id = <IDENTIFICADOR>
+    ( id = <IDENTIFICADOR> | id = <IDENTIFICADOR_INVALIDO> )
     [
         <ASIGNACION>
         (
@@ -794,7 +891,7 @@ Nodo declaracion() :
         listaNodos.add(nd);
     }
     (
-        <COMA> id = <IDENTIFICADOR>
+        <COMA> ( id = <IDENTIFICADOR> | id = <IDENTIFICADOR_INVALIDO> )
         { expr = null; }
         [
             <ASIGNACION>
@@ -827,19 +924,23 @@ Nodo propiedad() :
 {
     Token tipo;
     Token id;
+    Nodo expr = null;
 }
 {
     ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <CONST> | <READONLY> )*
     tipo = tipoDato() id = <IDENTIFICADOR>
-    <LLAVE_IZQ> 
-    ( 
-        [ <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> ] 
-        <IDENTIFICADOR> 
-        ( <PUNTO_COMA> | bloque() ) 
-    )* 
-    <LLAVE_DER>
+    (
+        <LLAVE_IZQ> 
+        ( 
+            [ <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> ] 
+            <IDENTIFICADOR> 
+            ( <PUNTO_COMA> | bloque() ) 
+        )* 
+        <LLAVE_DER>
+      | <FLECHA> expr = expresion() <PUNTO_COMA>
+    )
     {
-        return new NodoDeclaracion(tipo.image, id.image, null, tipo.beginLine, tipo.beginColumn);
+        return new NodoDeclaracion(tipo.image, id.image, expr, tipo.beginLine, tipo.beginColumn);
     }
 }
 
@@ -978,7 +1079,7 @@ Nodo declaracionEstructura() :
                     recuperarHastaLlave(e, "Se esperaba el nombre del método y sus parámetros");
                 }
             )
-            ( blq = bloque() | <PUNTO_COMA> )
+            ( blq = bloque() | <PUNTO_COMA> | ( <FLECHA> expresion() <PUNTO_COMA> ) )
             { return new NodoEstructura("method", id != null ? id.image : "error", id != null ? id.beginLine : 0, id != null ? id.beginColumn : 0); }
           | LOOKAHEAD( <IDENTIFICADOR> <PAREN_IZQ> )
             (
@@ -1230,7 +1331,12 @@ Nodo factor() :
             LOOKAHEAD( <CORCHETE_IZQ> )
             <CORCHETE_IZQ> n = expresion() <CORCHETE_DER>
             [ <LLAVE_IZQ> [ listaValoresArreglo() ] <LLAVE_DER> ]
-            { return new NodoInstanciacion(t.image, n, t.beginLine, t.beginColumn); }
+            { 
+                String sz = "0";
+                if (n instanceof NodoNumero) sz = ((NodoNumero)n).getValor();
+                else if (n != null) sz = n.toString();
+                return new NodoArreglo(t.image, sz, t.beginLine, t.beginColumn); 
+            }
           | { java.util.List<Nodo> argList = new java.util.ArrayList<Nodo>(); }
             [ <PAREN_IZQ> [ argList = listaArgumentos() ] <PAREN_DER> ]
             [ <LLAVE_IZQ> [ listaValoresArreglo() ] <LLAVE_DER> ]
@@ -1253,6 +1359,10 @@ Nodo factor() :
         {
             String val = t.image.substring(1, t.image.length() - 1);
             return new NodoCadena(val, t.beginLine, t.beginColumn);
+        }
+      | t = <CADENA_INTERPOLADA>
+        {
+            return new NodoCadena(t.image, t.beginLine, t.beginColumn);
         }
       | t = <CADENA_VERBATIM>
         {

@@ -4,6 +4,7 @@ import com.compilador.errores.ErrorSintactico;
 
 import javax.swing.*;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Insets;
@@ -19,8 +20,14 @@ public class PanelSintactico extends JPanel {
     private final JTextArea areaAST;
     private final JPanel panelErrores;
     private final JLabel labelEstado;
+    private final java.util.function.BiConsumer<Integer, Integer> alSeleccionarError;
 
     public PanelSintactico() {
+        this((linea, columna) -> { });
+    }
+
+    public PanelSintactico(java.util.function.BiConsumer<Integer, Integer> alSeleccionarError) {
+        this.alSeleccionarError = alSeleccionarError;
         setLayout(new BorderLayout(0, 4));
         setBackground(Colores.FONDO_PANEL);
 
@@ -127,103 +134,105 @@ public class PanelSintactico extends JPanel {
     }
 
     private JPanel crearItemError(ErrorSintactico error) {
-        JPanel itemPanel = new JPanel(new BorderLayout(8, 4));
+        JPanel itemPanel = new JPanel(new BorderLayout(8, 0));
         itemPanel.setBackground(Colores.FONDO_TABLA_ROW1);
-        itemPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Colores.BORDE, 1),
-            BorderFactory.createEmptyBorder(8, 10, 8, 10)
-        ));
-        itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+        Color colorEstado = Colores.ADVERTENCIA;
 
-        // Lado izquierdo: Contenido del error
+        // Borde minimalista: línea lateral delgada de 3px y padding compacto
+        itemPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 3, 0, 0, colorEstado),
+            BorderFactory.createEmptyBorder(6, 10, 6, 10)
+        ));
+        itemPanel.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+
+        // Contenedor principal vertical
         JPanel contenido = new JPanel();
         contenido.setLayout(new BoxLayout(contenido, BoxLayout.Y_AXIS));
         contenido.setBackground(Colores.FONDO_TABLA_ROW1);
 
-        // Línea 1: Ubicación
-        JLabel lblUbicacion = new JLabel("📍 Línea " + error.getLinea() + ", Columna " + error.getColumna());
-        lblUbicacion.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        lblUbicacion.setForeground(Colores.ADVERTENCIA);
-        contenido.add(lblUbicacion);
+        com.compilador.errores.FormateadorErrores.ErrorFormateado info = 
+            com.compilador.errores.FormateadorErrores.formatearSintactico(error);
 
-        // Limpiar el mensaje de JavaCC
-        String rawMsg = error.getMensaje() != null ? error.getMensaje() : "";
-        String esperadoLimpio = error.getTokenEsperado();
-        String mensajeLimpio = rawMsg;
-        
-        if (rawMsg.contains("Was expecting:")) {
-            String[] parts = rawMsg.split("Was expecting:");
-            esperadoLimpio = parts[1].replaceAll("\n", "").replaceAll("\r", "").replaceAll("    ", " ").trim();
-            
-            if (esperadoLimpio.contains("\";\"")) {
-                esperadoLimpio = ";";
-                mensajeLimpio = "Falta un punto y coma ';' al final de la instrucción.";
-            } else {
-                mensajeLimpio = "Se encontró un token inesperado.";
-            }
-        } else if (rawMsg.contains("Was expecting one of:")) {
-            String[] parts = rawMsg.split("Was expecting one of:");
-            esperadoLimpio = parts[1].replaceAll("\n", "").replaceAll("\r", "").replaceAll("    ", " ").replaceAll("\\.\\.\\.", "").trim();
-            
-            if (esperadoLimpio.contains("\";\"")) {
-                esperadoLimpio = ";";
-                mensajeLimpio = "Falta un punto y coma ';' al final de la instrucción.";
-            } else {
-                mensajeLimpio = "Se encontró un token inesperado.";
-            }
+        // Fila 1: [Línea X, Col Y] • Título  ---  Chip del token
+        JPanel filaHeader = new JPanel(new BorderLayout(6, 0));
+        filaHeader.setBackground(Colores.FONDO_TABLA_ROW1);
+
+        JLabel lblTitulo = new JLabel("Línea " + error.getLinea() + ":" + error.getColumna() + "  •  " + info.getTitulo());
+        lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblTitulo.setForeground(colorEstado);
+        filaHeader.add(lblTitulo, BorderLayout.WEST);
+
+        if (error.getTokenEncontrado() != null && !error.getTokenEncontrado().isEmpty()) {
+            JLabel lblToken = new JLabel(" " + error.getTokenEncontrado() + " ");
+            lblToken.setFont(new Font("Consolas", Font.BOLD, 12));
+            lblToken.setForeground(Colores.ADVERTENCIA); // Dorado claro de alto contraste
+            lblToken.setBackground(new java.awt.Color(12, 28, 52)); // Fondo oscuro nítido
+            lblToken.setOpaque(true);
+            lblToken.setBorder(BorderFactory.createLineBorder(Colores.BORDE, 1));
+            filaHeader.add(lblToken, BorderLayout.EAST);
         }
+        contenido.add(filaHeader);
+        contenido.add(Box.createVerticalStrut(3));
 
-        // Línea 2: Token encontrado
-        JLabel lblEncontrado = new JLabel("<html><b>Se encontró:</b> <span style='color:#E06C75; font-family:monospace;'>" + 
-            error.getTokenEncontrado().replace("<", "&lt;").replace(">", "&gt;") + "</span></html>");
-        lblEncontrado.setFont(Colores.FUENTE_TABLA);
-        contenido.add(lblEncontrado);
-
-        // Línea 3: Token esperado (limpio)
-        if (!"...".equals(esperadoLimpio) && !esperadoLimpio.isEmpty()) {
-            JLabel lblEsperado = new JLabel("<html><b>Se esperaba:</b> <span style='color:#98C379; font-family:monospace;'>" + 
-                esperadoLimpio.replace("<", "&lt;").replace(">", "&gt;") + "</span></html>");
-            lblEsperado.setFont(Colores.FUENTE_TABLA);
-            contenido.add(lblEsperado);
-        }
-
-        // Línea 4: Mensaje de error
-        JLabel lblMensaje = new JLabel("<html><p style='width:350px; color:#ABB2BF; margin-top:4px;'>" + 
-            mensajeLimpio.replace("<", "&lt;").replace(">", "&gt;") + "</p></html>");
+        // Fila 2: Mensaje explicativo claro en texto legible
+        String msgHtml = "<html><p style='width:340px; color:#DCEBFF; margin:0; padding:0;'>" + 
+            info.getMensaje().replace("<", "&lt;").replace(">", "&gt;") + "</p></html>";
+        JLabel lblMensaje = new JLabel(msgHtml);
         lblMensaje.setFont(Colores.FUENTE_NORMAL);
         contenido.add(lblMensaje);
 
+        // Fila 3: Sugerencia o esperado sutil (solo si aporta)
+        String extra = "";
+        if (info.getSugerencia() != null && !info.getSugerencia().isEmpty()) {
+            extra = "💡 " + info.getSugerencia();
+        } else if (info.getTokenEsperado() != null && !info.getTokenEsperado().isEmpty()) {
+            extra = "Se esperaba: " + info.getTokenEsperado();
+        }
+
+        if (!extra.isEmpty()) {
+            contenido.add(Box.createVerticalStrut(2));
+            JLabel lblExtra = new JLabel(extra);
+            lblExtra.setFont(Colores.FUENTE_PEQUENA);
+            lblExtra.setForeground(Colores.TEXTO_TENUE);
+            contenido.add(lblExtra);
+        }
+
         itemPanel.add(contenido, BorderLayout.CENTER);
 
-        // Lado derecho: Icono
-        JLabel iconoError = new JLabel("⚠️");
-        iconoError.setFont(new Font("Arial", Font.PLAIN, 24));
-        iconoError.setHorizontalAlignment(SwingConstants.CENTER);
-        iconoError.setPreferredSize(new Dimension(40, 80));
-        itemPanel.add(iconoError, BorderLayout.EAST);
-
-        // Hover effect
-        itemPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+        // Hover effect y click para saltar a la línea del error
+        java.awt.event.MouseAdapter clickListener = new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    alSeleccionarError.accept(error.getLinea(), error.getColumna());
+                }
+            }
             @Override
             public void mouseEntered(java.awt.event.MouseEvent e) {
                 itemPanel.setBackground(Colores.FONDO_SELECCION);
                 contenido.setBackground(Colores.FONDO_SELECCION);
+                filaHeader.setBackground(Colores.FONDO_SELECCION);
                 itemPanel.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Colores.BORDE_ENFOCADO, 2),
-                    BorderFactory.createEmptyBorder(8, 10, 8, 10)
+                    BorderFactory.createMatteBorder(0, 3, 0, 0, Colores.BORDE_ENFOCADO),
+                    BorderFactory.createEmptyBorder(6, 10, 6, 10)
                 ));
             }
-
             @Override
             public void mouseExited(java.awt.event.MouseEvent e) {
                 itemPanel.setBackground(Colores.FONDO_TABLA_ROW1);
                 contenido.setBackground(Colores.FONDO_TABLA_ROW1);
+                filaHeader.setBackground(Colores.FONDO_TABLA_ROW1);
                 itemPanel.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Colores.BORDE, 1),
-                    BorderFactory.createEmptyBorder(8, 10, 8, 10)
+                    BorderFactory.createMatteBorder(0, 3, 0, 0, colorEstado),
+                    BorderFactory.createEmptyBorder(6, 10, 6, 10)
                 ));
             }
-        });
+        };
+
+        itemPanel.addMouseListener(clickListener);
+        contenido.addMouseListener(clickListener);
+        lblTitulo.addMouseListener(clickListener);
+        lblMensaje.addMouseListener(clickListener);
 
         return itemPanel;
     }
