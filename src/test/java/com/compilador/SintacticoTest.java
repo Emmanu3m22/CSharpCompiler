@@ -215,9 +215,9 @@ public class SintacticoTest {
         NodoPrograma prog = parsear("Console.WriteLine(42);");
         assertEquals(1, prog.getSentencias().size());
 
-        NodoComando cmd = (NodoComando) prog.getSentencias().get(0);
-        assertEquals("Console.WriteLine", cmd.getComando());
-        assertInstanceOf(NodoNumero.class, cmd.getArgumento());
+        com.compilador.ast.NodoLlamadaMetodo cmd = (com.compilador.ast.NodoLlamadaMetodo) prog.getSentencias().get(0);
+        assertEquals("Console.WriteLine", cmd.getIdentificador());
+        assertInstanceOf(NodoNumero.class, cmd.getArgumentos().get(0));
     }
 
     @Test
@@ -226,6 +226,29 @@ public class SintacticoTest {
         String codigo = "int x = 5;\nint y = 10;\nx = x + y;\nConsole.WriteLine(x);";
         NodoPrograma prog = parsear(codigo);
         assertEquals(4, prog.getSentencias().size());
+    }
+
+    @Test
+    @DisplayName("Test de integración: parsea LearnCSharp.cs")
+    void testLearnCSharp() throws Exception {
+        java.io.File file = new java.io.File("LearnCSharp.cs");
+        if (file.exists()) {
+            java.util.Scanner scanner = new java.util.Scanner(file);
+            String codigo = scanner.useDelimiter("\\A").next();
+            scanner.close();
+            
+            Analizador parser = new Analizador(new java.io.StringReader(codigo));
+            NodoPrograma prog = parser.programa();
+            org.junit.jupiter.api.Assertions.assertNotNull(prog, "El programa no debería ser null");
+            
+            if (!parser.getErroresSintacticos().isEmpty()) {
+                System.out.println("Errores sintacticos en LearnCSharp:");
+                for (com.compilador.errores.ErrorSintactico err : parser.getErroresSintacticos()) {
+                    System.out.println(err.getLinea() + ":" + err.getColumna() + " -> " + err.getMensaje());
+                }
+            }
+            assertEquals(0, parser.getErroresSintacticos().size(), "El archivo LearnCSharp.cs contiene errores sintácticos");
+        }
     }
 
     @Test
@@ -989,5 +1012,51 @@ public class SintacticoTest {
         NodoCaso caso2 = nodoSwitch.getCasos().get(1);
         assertEquals("2", ((NodoNumero) caso2.getValor()).getValor());
         assertEquals(1, caso2.getSentencias().size()); // break
+    }
+
+    @Test
+    @DisplayName("Parsea CasosAvanzados exitosamente (propiedades, interpolación, foreach, try/catch/throw, flecha lambda)")
+    void testCasosAvanzados() throws Exception {
+        String codigo = "namespace DocumentacionErrores\n" +
+            "{\n" +
+            "    public class CasosAvanzados\n" +
+            "    {\n" +
+            "        public int Edad { get; set; }\n" +
+            "\n" +
+            "        public void GenerarNuevosErrores()\n" +
+            "        {\n" +
+            "            string mensaje = $\"La edad es {Edad}\";\n" +
+            "\n" +
+            "            foreach (int numero in arreglo)\n" +
+            "            {\n" +
+            "                numero++;\n" +
+            "            }\n" +
+            "\n" +
+            "            try\n" +
+            "            {\n" +
+            "                int division = 10 / 0;\n" +
+            "            }\n" +
+            "            catch\n" +
+            "            {\n" +
+            "                throw;\n" +
+            "            }\n" +
+            "            finally\n" +
+            "            {\n" +
+            "                mensaje = \"Finalizado\";\n" +
+            "            }\n" +
+            "\n" +
+            "            int Multiplicar(int a, int b) => a * b;\n" +
+            "        }\n" +
+            "    }\n" +
+            "}";
+
+        Analizador parser = new Analizador(new StringReader(codigo));
+        NodoPrograma prog = parser.programa();
+
+        assertNotNull(prog, "El programa no debe ser nulo");
+        assertEquals(0, parser.getErroresSintacticos().size(), 
+            "No debe haber errores sintácticos. Encontrados: " + parser.getErroresSintacticos());
+        assertEquals(0, parser.getErroresLexicos().size(), 
+            "No debe haber errores léxicos. Encontrados: " + parser.getErroresLexicos());
     }
 }
