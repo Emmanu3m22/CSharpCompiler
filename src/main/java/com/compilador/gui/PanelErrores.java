@@ -2,6 +2,7 @@ package com.compilador.gui;
 
 import com.compilador.errores.ErrorLexico;
 import com.compilador.errores.ErrorSintactico;
+import com.compilador.semantic.ErrorSemantico;
 
 import javax.swing.*;
 import java.awt.BorderLayout;
@@ -25,9 +26,11 @@ public class PanelErrores extends JPanel {
 
     private final JPanel panelErroresLexicos;
     private final JPanel panelErroresSintacticos;
+    private final JPanel panelErroresSemanticos;
     private final BiConsumer<Integer, Integer> alSeleccionarError;
     private JLabel labelCountLex;
     private JLabel labelCountSint;
+    private JLabel labelCountSem;
 
     public PanelErrores() {
         this((linea, columna) -> { });
@@ -72,35 +75,59 @@ public class PanelErrores extends JPanel {
         seccionSintactica.add(encabezadoSintactico, BorderLayout.NORTH);
         seccionSintactica.add(scrollSint, BorderLayout.CENTER);
 
-        JSplitPane splitErrores = new JSplitPane(
+        // ── Sección de Errores Semánticos ──
+        JPanel encabezadoSemantico = crearSeccionErroresSem();
+        panelErroresSemanticos = new JPanel();
+        panelErroresSemanticos.setLayout(new BoxLayout(panelErroresSemanticos, BoxLayout.Y_AXIS));
+        panelErroresSemanticos.setBackground(Colores.FONDO_PANEL);
+        panelErroresSemanticos.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        JScrollPane scrollSem = new JScrollPane(panelErroresSemanticos);
+        scrollSem.setBackground(Colores.FONDO_PANEL);
+        scrollSem.setBorder(BorderFactory.createLineBorder(Colores.BORDE, 1));
+        scrollSem.getViewport().setBackground(Colores.FONDO_PANEL);
+
+        JPanel seccionSemantica = new JPanel(new BorderLayout(0, 4));
+        seccionSemantica.setBackground(Colores.FONDO_PRINCIPAL);
+        seccionSemantica.add(encabezadoSemantico, BorderLayout.NORTH);
+        seccionSemantica.add(scrollSem, BorderLayout.CENTER);
+
+        // ── Layout: split triple (léxico | sintáctico | semántico) ──
+        JSplitPane splitLexSint = new JSplitPane(
             JSplitPane.VERTICAL_SPLIT, seccionLexica, seccionSintactica);
-        splitErrores.setResizeWeight(0.5);
-        splitErrores.setDividerLocation(0.5);
-        splitErrores.setDividerSize(6);
+        splitLexSint.setResizeWeight(0.5);
+        splitLexSint.setDividerLocation(0.5);
+        splitLexSint.setDividerSize(5);
+        splitLexSint.setBorder(BorderFactory.createEmptyBorder());
+        splitLexSint.setBackground(Colores.FONDO_PRINCIPAL);
+
+        JSplitPane splitErrores = new JSplitPane(
+            JSplitPane.VERTICAL_SPLIT, splitLexSint, seccionSemantica);
+        splitErrores.setResizeWeight(0.67);
+        splitErrores.setDividerLocation(0.67);
+        splitErrores.setDividerSize(5);
         splitErrores.setBorder(BorderFactory.createEmptyBorder());
         splitErrores.setBackground(Colores.FONDO_PRINCIPAL);
         add(splitErrores);
     }
 
     /**
-     * Crea el encabezado de una sección de errores.
+     * Crea el encabezado de una sección de errores léxicos o sintácticos.
      */
     private JPanel crearSeccionErrores(boolean esLexico) {
         JPanel panel = new JPanel(new BorderLayout(12, 0));
         panel.setBackground(Colores.FONDO_CONTENEDOR);
         panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(0, 4, 0, 0, 
+            BorderFactory.createMatteBorder(0, 4, 0, 0,
                 esLexico ? Colores.ERROR : Colores.ADVERTENCIA),
             BorderFactory.createEmptyBorder(8, 8, 8, 8)
         ));
 
-        // Icono y título
         JLabel titulo = new JLabel(esLexico ? "🔴 Errores Léxicos" : "⚠️ Errores Sintácticos");
         titulo.setFont(new Font("Segoe UI", Font.BOLD, 13));
         titulo.setForeground(esLexico ? Colores.ERROR : Colores.ADVERTENCIA);
         panel.add(titulo, BorderLayout.WEST);
 
-        // Contador
         JLabel contador = new JLabel("0");
         contador.setFont(new Font("Segoe UI", Font.BOLD, 13));
         contador.setForeground(Colores.TEXTO_NORMAL);
@@ -111,6 +138,30 @@ public class PanelErrores extends JPanel {
         } else {
             labelCountSint = contador;
         }
+
+        return panel;
+    }
+
+    /**
+     * Crea el encabezado de la sección de errores semánticos.
+     */
+    private JPanel crearSeccionErroresSem() {
+        JPanel panel = new JPanel(new BorderLayout(12, 0));
+        panel.setBackground(Colores.FONDO_CONTENEDOR);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 4, 0, 0, Colores.ACENTO_SEMANTICO),
+            BorderFactory.createEmptyBorder(8, 8, 8, 8)
+        ));
+
+        JLabel titulo = new JLabel("🟣 Errores Semánticos");
+        titulo.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        titulo.setForeground(Colores.ACENTO_SEMANTICO);
+        panel.add(titulo, BorderLayout.WEST);
+
+        labelCountSem = new JLabel("0");
+        labelCountSem.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        labelCountSem.setForeground(Colores.TEXTO_NORMAL);
+        panel.add(labelCountSem, BorderLayout.EAST);
 
         return panel;
     }
@@ -152,7 +203,7 @@ public class PanelErrores extends JPanel {
             panelErroresSintacticos.add(labelVacio);
         } else {
             for (ErrorSintactico error : errores) {
-                com.compilador.errores.FormateadorErrores.ErrorFormateado info = 
+                com.compilador.errores.FormateadorErrores.ErrorFormateado info =
                     com.compilador.errores.FormateadorErrores.formatearSintactico(error);
                 panelErroresSintacticos.add(crearItemError(info, error.getTokenEncontrado(),
                     error.getLinea(), error.getColumna(), false));
@@ -165,9 +216,108 @@ public class PanelErrores extends JPanel {
     }
 
     /**
-     * Crea un item visual para mostrar un error con diseño minimalista y alto contraste.
+     * Carga y muestra los errores semánticos con el mismo formato visual.
      */
-    private JPanel crearItemError(com.compilador.errores.FormateadorErrores.ErrorFormateado info, 
+    public void cargarErroresSemanticos(List<ErrorSemantico> errores) {
+        panelErroresSemanticos.removeAll();
+        labelCountSem.setText(String.valueOf(errores.size()));
+
+        if (errores.isEmpty()) {
+            JLabel labelVacio = new JLabel("✓ Sin errores semánticos");
+            labelVacio.setFont(Colores.FUENTE_NORMAL);
+            labelVacio.setForeground(Colores.EXITO);
+            panelErroresSemanticos.add(labelVacio);
+        } else {
+            for (ErrorSemantico error : errores) {
+                panelErroresSemanticos.add(crearItemErrorSemantico(error));
+                panelErroresSemanticos.add(Box.createVerticalStrut(8));
+            }
+        }
+
+        panelErroresSemanticos.revalidate();
+        panelErroresSemanticos.repaint();
+    }
+
+    /**
+     * Crea un item visual para errores semánticos (mismo estilo, color morado).
+     */
+    private JPanel crearItemErrorSemantico(ErrorSemantico error) {
+        JPanel itemPanel = new JPanel(new BorderLayout(8, 0));
+        itemPanel.setBackground(Colores.FONDO_TABLA_ROW1);
+        Color colorEstado = Colores.ACENTO_SEMANTICO;
+
+        itemPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 3, 0, 0, colorEstado),
+            BorderFactory.createEmptyBorder(6, 10, 6, 10)
+        ));
+        itemPanel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        JPanel contenido = new JPanel();
+        contenido.setLayout(new BoxLayout(contenido, BoxLayout.Y_AXIS));
+        contenido.setBackground(Colores.FONDO_TABLA_ROW1);
+
+        // Fila 1: [Línea X, Col Y] • Tipo de error
+        JPanel filaHeader = new JPanel(new BorderLayout(6, 0));
+        filaHeader.setBackground(Colores.FONDO_TABLA_ROW1);
+
+        JLabel lblTitulo = new JLabel(
+            "Línea " + error.getLinea() + ":" + error.getColumna() + "  •  " + error.getTipoError());
+        lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblTitulo.setForeground(colorEstado);
+        filaHeader.add(lblTitulo, BorderLayout.WEST);
+        contenido.add(filaHeader);
+        contenido.add(Box.createVerticalStrut(3));
+
+        // Fila 2: Mensaje del error
+        String msgHtml = "<html><p style='width:340px; color:#DCEBFF; margin:0; padding:0;'>" +
+            error.getMensaje().replace("<", "&lt;").replace(">", "&gt;") + "</p></html>";
+        JLabel lblMensaje = new JLabel(msgHtml);
+        lblMensaje.setFont(Colores.FUENTE_NORMAL);
+        contenido.add(lblMensaje);
+
+        itemPanel.add(contenido, BorderLayout.CENTER);
+
+        // Hover
+        MouseAdapter clickListener = new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    alSeleccionarError.accept(error.getLinea(), error.getColumna());
+                }
+            }
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                itemPanel.setBackground(Colores.FONDO_SELECCION);
+                contenido.setBackground(Colores.FONDO_SELECCION);
+                filaHeader.setBackground(Colores.FONDO_SELECCION);
+                itemPanel.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0, 3, 0, 0, Colores.BORDE_ENFOCADO),
+                    BorderFactory.createEmptyBorder(6, 10, 6, 10)
+                ));
+            }
+            @Override
+            public void mouseExited(MouseEvent e) {
+                itemPanel.setBackground(Colores.FONDO_TABLA_ROW1);
+                contenido.setBackground(Colores.FONDO_TABLA_ROW1);
+                filaHeader.setBackground(Colores.FONDO_TABLA_ROW1);
+                itemPanel.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0, 3, 0, 0, colorEstado),
+                    BorderFactory.createEmptyBorder(6, 10, 6, 10)
+                ));
+            }
+        };
+        itemPanel.addMouseListener(clickListener);
+        contenido.addMouseListener(clickListener);
+        lblTitulo.addMouseListener(clickListener);
+        lblMensaje.addMouseListener(clickListener);
+
+        return itemPanel;
+    }
+
+    /**
+     * Crea un item visual para mostrar un error léxico/sintáctico con diseño minimalista.
+     */
+    private JPanel crearItemError(com.compilador.errores.FormateadorErrores.ErrorFormateado info,
                                   String token, int linea, int columna, boolean esLexico) {
         JPanel itemPanel = new JPanel(new BorderLayout(8, 0));
         itemPanel.setBackground(Colores.FONDO_TABLA_ROW1);
@@ -275,10 +425,11 @@ public class PanelErrores extends JPanel {
     public void limpiar() {
         panelErroresLexicos.removeAll();
         panelErroresSintacticos.removeAll();
+        panelErroresSemanticos.removeAll();
         labelCountLex.setText("0");
         labelCountSint.setText("0");
+        labelCountSem.setText("0");
 
-        // Mostrar mensajes de espera
         JLabel lblEspLex = new JLabel("Esperando análisis...");
         lblEspLex.setFont(Colores.FUENTE_NORMAL);
         lblEspLex.setForeground(Colores.TEXTO_TENUE);
@@ -289,9 +440,16 @@ public class PanelErrores extends JPanel {
         lblEspSint.setForeground(Colores.TEXTO_TENUE);
         panelErroresSintacticos.add(lblEspSint);
 
+        JLabel lblEspSem = new JLabel("Esperando análisis...");
+        lblEspSem.setFont(Colores.FUENTE_NORMAL);
+        lblEspSem.setForeground(Colores.TEXTO_TENUE);
+        panelErroresSemanticos.add(lblEspSem);
+
         panelErroresLexicos.revalidate();
         panelErroresSintacticos.revalidate();
+        panelErroresSemanticos.revalidate();
         panelErroresLexicos.repaint();
         panelErroresSintacticos.repaint();
+        panelErroresSemanticos.repaint();
     }
 }
