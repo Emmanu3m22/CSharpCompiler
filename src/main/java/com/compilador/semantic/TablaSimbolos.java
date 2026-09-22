@@ -15,6 +15,9 @@ public class TablaSimbolos {
     /** Mapa de nombre de variable → símbolo, organizado por ámbito */
     private final Map<String, Simbolo> simbolos;
 
+    /** Firmas de métodos definidos por el usuario, indexadas por nombre */
+    private final Map<String, SimboloMetodo> metodos;
+
     /** Ámbito actual (global, nombre de función, etc.) */
     private String ambitoActual;
 
@@ -23,6 +26,7 @@ public class TablaSimbolos {
 
     public TablaSimbolos() {
         this.simbolos = new HashMap<>();
+        this.metodos = new HashMap<>();
         this.ambitoActual = "global";
         this.pilaAmbitos = new ArrayList<>();
         this.pilaAmbitos.add("global");
@@ -62,6 +66,25 @@ public class TablaSimbolos {
      */
     public boolean existe(String nombre) {
         return buscar(nombre) != null;
+    }
+
+    /**
+     * Registra la firma de un método definido por el usuario.
+     */
+    public boolean registrarMetodo(SimboloMetodo metodo) {
+        if (metodos.containsKey(metodo.getNombre())) {
+            return false;
+        }
+        metodos.put(metodo.getNombre(), metodo);
+        return true;
+    }
+
+    public SimboloMetodo buscarMetodo(String nombre) {
+        return metodos.get(nombre);
+    }
+
+    public Map<String, SimboloMetodo> getMetodos() {
+        return new HashMap<>(metodos);
     }
 
     /**

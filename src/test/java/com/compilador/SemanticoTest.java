@@ -164,4 +164,56 @@ public class SemanticoTest {
         // La variable global sigue visible
         assertTrue(tabla.existe("x"));
     }
+
+    @Test
+    @DisplayName("Llamada con cantidad exacta de argumentos no genera error")
+    void testLlamadaConArgumentosExactos() throws Exception {
+        String codigo = "class C { void S(int x, int y) {} void T() { S(1, 2); } }";
+
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertFalse(sem.tieneErrores(), sem.getErrores().toString());
+    }
+
+    @Test
+    @DisplayName("Llamada con argumentos de más genera error")
+    void testLlamadaConArgumentosDeMas() throws Exception {
+        String codigo = "class C { void S(int x) {} void T() { S(1, 2); } }";
+
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        assertEquals("ARGUMENTOS_DE_MAS", sem.getErrores().get(0).getTipoError());
+    }
+
+    @Test
+    @DisplayName("Llamada con argumentos de menos genera error")
+    void testLlamadaConArgumentosDeMenos() throws Exception {
+        String codigo = "class C { void S(int x, int y) {} void T() { S(1); } }";
+
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        assertEquals("ARGUMENTOS_DE_MENOS", sem.getErrores().get(0).getTipoError());
+    }
+
+    @Test
+    @DisplayName("La omisión de un parámetro opcional no genera error")
+    void testLlamadaConParametroOpcional() throws Exception {
+        String codigo = "class C { void S(int x, int y = 2) {} void T() { S(1); } }";
+
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertFalse(sem.tieneErrores(), sem.getErrores().toString());
+    }
+
+    @Test
+    @DisplayName("Una función puede llamarse antes de su declaración")
+    void testLlamadaAntesDeDeclaracion() throws Exception {
+        String codigo = "class C { void T() { S(1); } void S(int x) {} }";
+
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertFalse(sem.tieneErrores(), sem.getErrores().toString());
+    }
 }

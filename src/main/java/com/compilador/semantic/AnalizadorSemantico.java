@@ -31,6 +31,7 @@ public class AnalizadorSemantico implements NodoVisitor<Void> {
      */
     public List<ErrorSemantico> analizar(NodoPrograma programa) {
         errores.clear();
+        registrarMetodos(programa.getSentencias());
         programa.accept(this);
         return errores;
     }
@@ -173,6 +174,7 @@ public class AnalizadorSemantico implements NodoVisitor<Void> {
 
     @Override
     public Void visitar(NodoLlamadaMetodo nodo) {
+        analizarCantidadArgumentos(nodo);
         visitarHijos(nodo.getArgumentos());
         return null;
     }
@@ -190,8 +192,75 @@ public class AnalizadorSemantico implements NodoVisitor<Void> {
 
     @Override
     public Void visitar(NodoEstructura nodo) {
+        if ("method".equals(nodo.getTipoEstructura())) {
+            tablaSimbolos.entrarAmbito(nodo.getIdentificador());
+            for (ParametroMetodo parametro : nodo.getParametros()) {
+                TipoDato tipo = TipoDato.desdeString(parametro.getTipo());
+                if (tipo != TipoDato.DESCONOCIDO) {
+                    tablaSimbolos.registrar(new Simbolo(
+                            parametro.getNombre(), tipo, nodo.getLinea(), nodo.getColumna()
+                    ));
+                }
+            }
+            visitarHijo(nodo.getCuerpo());
+            tablaSimbolos.salirAmbito();
+            return null;
+        }
         visitarHijo(nodo.getCuerpo());
         return null;
+    }
+
+    private void registrarMetodos(List<? extends Nodo> nodos) {
+        for (Nodo nodo : nodos) {
+            if (nodo instanceof NodoEstructura estructura) {
+                if ("method".equals(estructura.getTipoEstructura())
+                        && estructura.getIdentificador() != null
+                        && !"error".equals(estructura.getIdentificador())) {
+                    SimboloMetodo metodo = new SimboloMetodo(
+                            estructura.getIdentificador(), estructura.getParametros(),
+                            estructura.getLinea(), estructura.getColumna()
+                    );
+                    if (!tablaSimbolos.registrarMetodo(metodo)) {
+                        errores.add(new ErrorSemantico(
+                                "Método '" + estructura.getIdentificador()
+                                        + "' ya fue declarado",
+                                "REDECLARACION_METODO",
+                                estructura.getLinea(), estructura.getColumna()
+                        ));
+                    }
+                }
+                if (estructura.getCuerpo() != null) {
+                    registrarMetodos(estructura.getCuerpo().getSentencias());
+                }
+            }
+        }
+    }
+
+    private void analizarCantidadArgumentos(NodoLlamadaMetodo nodo) {
+        SimboloMetodo metodo = tablaSimbolos.buscarMetodo(nodo.getIdentificador());
+        if (metodo == null) {
+            return;
+        }
+
+        int cantidadArgumentos = nodo.getArgumentos() == null ? 0 : nodo.getArgumentos().size();
+        int minimo = metodo.getCantidadMinimaArgumentos();
+        int maximo = metodo.getCantidadMaximaArgumentos();
+
+        if (cantidadArgumentos > maximo) {
+            errores.add(new ErrorSemantico(
+                    "El método '" + nodo.getIdentificador() + "' esperaba como máximo "
+                            + maximo + " argumento(s), pero recibió " + cantidadArgumentos,
+                    "ARGUMENTOS_DE_MAS",
+                    nodo.getLinea(), nodo.getColumna()
+            ));
+        } else if (cantidadArgumentos < minimo) {
+            errores.add(new ErrorSemantico(
+                    "El método '" + nodo.getIdentificador() + "' esperaba al menos "
+                            + minimo + " argumento(s), pero recibió " + cantidadArgumentos,
+                    "ARGUMENTOS_DE_MENOS",
+                    nodo.getLinea(), nodo.getColumna()
+            ));
+        }
     }
 
     @Override

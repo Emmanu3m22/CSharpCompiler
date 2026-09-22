@@ -365,7 +365,9 @@ Nodo sentencia() :
       | LOOKAHEAD( ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <READONLY> | <CONST> )* 
                    tipoDato() <IDENTIFICADOR> ( <LLAVE_IZQ> | <FLECHA> ) )
         n = propiedad()                                   { return n; }
-      | LOOKAHEAD( ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <READONLY> | <CONST> )* 
+            | LOOKAHEAD( llamadaMetodo() <PUNTO_COMA> )
+                n = llamadaMetodo() <PUNTO_COMA>                  { return n; }
+            | LOOKAHEAD( ( <PUBLIC> | <PRIVATE> | <PROTECTED> | <INTERNAL> | <STATIC> | <VIRTUAL> | <OVERRIDE> | <READONLY> | <CONST> )* 
                    ( <NAMESPACE> | <USING> | <CLASS> | <INTERFACE> | <ENUM> 
                    | tipoDato() <OPERATOR> 
                    | tipoDato() <IDENTIFICADOR> <PAREN_IZQ> 
@@ -373,8 +375,6 @@ Nodo sentencia() :
                    | <IDENTIFICADOR> <PAREN_IZQ> 
                    | <PAREN_IZQ> ) )
         n = declaracionEstructura()                       { return n; }
-      | LOOKAHEAD( llamadaMetodo() <PUNTO_COMA> )
-        n = llamadaMetodo() <PUNTO_COMA>                  { return n; }
       | LOOKAHEAD({ esDeclaracion() })
         n = declaracion() <PUNTO_COMA>                   { return n; }
       | LOOKAHEAD(<IDENTIFICADOR> (<INCREMENTO> | <DECREMENTO>))
@@ -1014,6 +1014,7 @@ Nodo declaracionEstructura() :
     Token t = null;
     Token id = null;
     NodoBloque blq = null;
+    java.util.List<ParametroMetodo> params = new java.util.ArrayList<ParametroMetodo>();
 }
 {
     (
@@ -1058,30 +1059,30 @@ Nodo declaracionEstructura() :
             { return new NodoEstructura("enum", id != null ? id.image : "error", t.beginLine, t.beginColumn); }
           | LOOKAHEAD( tipoDato() <OPERATOR> )
             tipoDato() <OPERATOR> ( <IGUAL> | <DIFERENTE> | <SUMA> | <RESTA> | <MULT> | <DIV> )
-            <PAREN_IZQ> [ parametros() ] <PAREN_DER> blq = bloque()
-            { return new NodoEstructura("operator", "op", blq, t != null ? t.beginLine : 0, 0); }
+                        <PAREN_IZQ> [ params = parametros() ] <PAREN_DER> blq = bloque()
+                        { return new NodoEstructura("operator", "op", blq, params, t != null ? t.beginLine : 0, 0); }
           | LOOKAHEAD( ( <VOID> | tipoDato() ) <IDENTIFICADOR> )
             ( <VOID> | tipoDato() ) 
             (
                 try {
-                    id = <IDENTIFICADOR> <PAREN_IZQ> [ parametros() ] <PAREN_DER> 
+                    id = <IDENTIFICADOR> <PAREN_IZQ> [ params = parametros() ] <PAREN_DER> 
                 } catch (ParseException e) {
                     recuperarHastaLlave(e, "Se esperaba el nombre del método y sus parámetros");
                 }
             )
             ( blq = bloque() | <PUNTO_COMA> | ( <FLECHA> expresion() <PUNTO_COMA> ) )
-            { return new NodoEstructura("method", id != null ? id.image : "error", blq, id != null ? id.beginLine : 0, id != null ? id.beginColumn : 0); }
+            { return new NodoEstructura("method", id != null ? id.image : "error", blq, params, id != null ? id.beginLine : 0, id != null ? id.beginColumn : 0); }
           | LOOKAHEAD( <IDENTIFICADOR> <PAREN_IZQ> )
             (
                 try {
-                    id = <IDENTIFICADOR> <PAREN_IZQ> [ parametros() ] <PAREN_DER> 
+                    id = <IDENTIFICADOR> <PAREN_IZQ> [ params = parametros() ] <PAREN_DER> 
                     [ <DOS_PUNTOS> ( <BASE> | <THIS> ) <PAREN_IZQ> [ listaArgumentos() ] <PAREN_DER> ]
                 } catch (ParseException e) {
                     recuperarHastaLlave(e, "Se esperaba la firma del constructor");
                 }
             )
             ( blq = bloque() | <PUNTO_COMA> )
-            { return new NodoEstructura("constructor", id != null ? id.image : "error", blq, id != null ? id.beginLine : 0, id != null ? id.beginColumn : 0); }
+            { return new NodoEstructura("constructor", id != null ? id.image : "error", blq, params, id != null ? id.beginLine : 0, id != null ? id.beginColumn : 0); }
           | LOOKAHEAD( <PAREN_IZQ> )
             (
                 try {
@@ -1096,11 +1097,25 @@ Nodo declaracionEstructura() :
     )
 }
 
-void parametros() :
-{}
+java.util.List<ParametroMetodo> parametros() :
 {
-    tipoDato() <IDENTIFICADOR> [ <ASIGNACION> expresion() ] 
-    ( <COMA> tipoDato() <IDENTIFICADOR> [ <ASIGNACION> expresion() ] )*
+    java.util.List<ParametroMetodo> params = new java.util.ArrayList<ParametroMetodo>();
+    Token tipo;
+    Token nombre;
+    Nodo valorPorDefecto;
+}
+{
+    tipo = tipoDato() nombre = <IDENTIFICADOR>
+    { valorPorDefecto = null; }
+    [ <ASIGNACION> valorPorDefecto = expresion() ]
+    { params.add(new ParametroMetodo(tipo.image, nombre.image, valorPorDefecto)); }
+    (
+        <COMA> tipo = tipoDato() nombre = <IDENTIFICADOR>
+        { valorPorDefecto = null; }
+        [ <ASIGNACION> valorPorDefecto = expresion() ]
+        { params.add(new ParametroMetodo(tipo.image, nombre.image, valorPorDefecto)); }
+    )*
+    { return params; }
 }
 
 /* ── Jerarquía de expresiones (de menor a mayor precedencia) ── */
