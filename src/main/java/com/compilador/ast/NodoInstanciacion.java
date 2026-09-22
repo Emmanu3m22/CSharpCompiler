@@ -32,6 +32,14 @@ public class NodoInstanciacion extends Nodo {
         return argumentos;
     }
 
+    public Nodo getIndiceArreglo() {
+        return indiceArreglo;
+    }
+
+    public boolean isEsArreglo() {
+        return esArreglo;
+    }
+
     @Override
     public String toString() {
         if (esArreglo) {
@@ -50,5 +58,10 @@ public class NodoInstanciacion extends Nodo {
             sb.append("))");
             return sb.toString();
         }
+    }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
     }
 }

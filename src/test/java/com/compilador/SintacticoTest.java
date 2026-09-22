@@ -3,6 +3,7 @@ package com.compilador;
 import java.io.StringReader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.compilador.ast.*;
+import com.compilador.semantic.AnalizadorSemantico;
 
 /**
  * Pruebas del analizador sintáctico.
@@ -135,6 +137,33 @@ public class SintacticoTest {
         NodoAsignacion asig = (NodoAsignacion) prog.getSentencias().get(0);
         assertEquals("x", asig.getIdentificador());
         assertInstanceOf(NodoNumero.class, asig.getExpresion());
+    }
+
+    @Test
+    @DisplayName("Conserva el destino estructurado de una asignación a arreglo")
+    void testAsignacionArreglo() throws Exception {
+        NodoPrograma prog = parsear("arr[i] = 10;");
+
+        NodoAsignacion asig = (NodoAsignacion) prog.getSentencias().get(0);
+        assertInstanceOf(NodoAccesoArreglo.class, asig.getDestino());
+
+        NodoAccesoArreglo acceso = (NodoAccesoArreglo) asig.getDestino();
+        assertInstanceOf(NodoIdentificador.class, acceso.getArreglo());
+        assertEquals("arr", ((NodoIdentificador) acceso.getArreglo()).getNombre());
+        assertInstanceOf(NodoIdentificador.class, acceso.getIndice());
+        assertEquals("i", ((NodoIdentificador) acceso.getIndice()).getNombre());
+        assertEquals(1, acceso.getLinea());
+        assertEquals(1, acceso.getColumna());
+    }
+
+    @Test
+    @DisplayName("El acceso a arreglo participa en el recorrido Visitor")
+    void testVisitorAccesoArreglo() throws Exception {
+        NodoPrograma prog = parsear("arr[i] = 10;");
+        NodoAsignacion asig = (NodoAsignacion) prog.getSentencias().get(0);
+
+        AnalizadorSemantico semantico = new AnalizadorSemantico();
+        assertDoesNotThrow(() -> asig.getDestino().accept(semantico));
     }
 
     @Test

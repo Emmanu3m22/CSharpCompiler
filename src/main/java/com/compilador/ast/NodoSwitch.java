@@ -43,4 +43,9 @@ public class NodoSwitch extends Nodo {
         sb.append("])");
         return sb.toString();
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

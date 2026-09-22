@@ -22,4 +22,9 @@ public class NodoNegacionLogica extends Nodo {
     public String toString() {
         return "Negacion(!" + expresion + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

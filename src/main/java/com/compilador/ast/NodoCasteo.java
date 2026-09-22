@@ -22,4 +22,9 @@ public class NodoCasteo extends Nodo {
     public String toString() {
         return "Casteo((" + tipo + ") " + expresion + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

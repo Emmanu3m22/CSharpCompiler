@@ -23,6 +23,11 @@ public class NodoArreglo extends Nodo {
     }
 
     @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
+
+    @Override
     public String toString() {
         return "Arreglo(" + tipoElemento + ", tamaño=" + tamaño + ")";
     }

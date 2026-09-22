@@ -17,6 +17,11 @@ public class NodoBloque extends Nodo {
         this.sentencias = new ArrayList<>();
     }
 
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
+
     public void agregarSentencia(Nodo sentencia) {
         sentencias.add(sentencia);
     }

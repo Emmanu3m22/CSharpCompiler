@@ -39,4 +39,9 @@ public class NodoOperacionLogica extends Nodo {
     public String toString() {
         return "Logica(" + izquierdo + " " + operador + " " + derecho + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

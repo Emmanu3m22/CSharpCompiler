@@ -22,4 +22,9 @@ public class NodoBooleano extends Nodo {
     public String toString() {
         return "Booleano(" + valor + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

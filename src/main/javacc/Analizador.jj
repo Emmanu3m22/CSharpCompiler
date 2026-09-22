@@ -381,6 +381,8 @@ Nodo sentencia() :
         n = sentenciaIncremento() <PUNTO_COMA>             { return n; }
       | LOOKAHEAD(<IDENTIFICADOR> (<SUMA_ASIG> | <RESTA_ASIG> | <MULT_ASIG> | <DIV_ASIG> | <MOD_ASIG>))
         n = asignacionCompuesta() <PUNTO_COMA>             { return n; }
+            | LOOKAHEAD( <IDENTIFICADOR> <CORCHETE_IZQ> )
+                n = asignacion() <PUNTO_COMA>                     { return n; }
       | LOOKAHEAD(2) n = asignacion() <PUNTO_COMA>        { return n; }
       | n = sentenciaIncremento() <PUNTO_COMA>            { return n; }
       | n = sentenciaBreak()                              { return n; }
@@ -763,30 +765,17 @@ Nodo asignacion() :
 {
     Nodo target;
     Nodo expr;
-    java.util.List<Nodo> indices = new java.util.ArrayList<Nodo>();
 }
 {
     target = llamadaMetodo()
     (
         <CORCHETE_IZQ> expr = expresion() <CORCHETE_DER>
-        { indices.add(expr); }
+        { target = new NodoAccesoArreglo(target, expr, target.getLinea(), target.getColumna()); }
     )*
     <ASIGNACION>
     expr = expresion()
     {
-        String varName = "";
-        if (target instanceof NodoLlamadaMetodo) {
-            varName = ((NodoLlamadaMetodo)target).getIdentificador();
-        } else if (target instanceof NodoIdentificador) {
-            varName = ((NodoIdentificador)target).getNombre();
-        }
-        
-        if (indices.isEmpty()) {
-            return new NodoAsignacion(varName, expr, target.getLinea(), target.getColumna());
-        } else {
-            // Representamos asignación a arreglo
-            return new NodoAsignacion(varName + "[]", expr, target.getLinea(), target.getColumna());
-        }
+        return new NodoAsignacion(target, expr, target.getLinea(), target.getColumna());
     }
 }
 
@@ -977,13 +966,14 @@ Nodo asignacionCompuesta() :
 Nodo llamadaMetodo() :
 {
     Token t;
+    Token inicio;
     StringBuilder id = new StringBuilder();
     java.util.List<Nodo> args = new java.util.ArrayList<Nodo>();
     boolean isMethod = false;
 }
 {
     ( t = tipoDatoBase() | t = <BASE> | t = <THIS> )
-    { id.append(t.image); }
+    { inicio = t; id.append(t.image); }
     (
         <PUNTO> t = <IDENTIFICADOR>
         { id.append(".").append(t.image); }
@@ -996,9 +986,9 @@ Nodo llamadaMetodo() :
     ]
     { 
         if (isMethod) {
-            return new NodoLlamadaMetodo(id.toString(), args, t != null ? t.beginLine : 0, 0); 
+            return new NodoLlamadaMetodo(id.toString(), args, inicio.beginLine, inicio.beginColumn); 
         } else {
-            return new NodoIdentificador(id.toString(), t != null ? t.beginLine : 0, 0);
+            return new NodoIdentificador(id.toString(), inicio.beginLine, inicio.beginColumn);
         }
     }
 }
@@ -1028,7 +1018,7 @@ Nodo declaracionEstructura() :
 {
     (
         t = <NAMESPACE> id = <IDENTIFICADOR> blq = bloque()
-        { return new NodoEstructura("namespace", id.image, t.beginLine, t.beginColumn); }
+        { return new NodoEstructura("namespace", id.image, blq, t.beginLine, t.beginColumn); }
       | t = <USING> id = <IDENTIFICADOR>
         ( <PUNTO> <IDENTIFICADOR> )* <PUNTO_COMA>
         { return new NodoEstructura("using", id.image, t.beginLine, t.beginColumn); }
@@ -1043,7 +1033,7 @@ Nodo declaracionEstructura() :
                 }
             )
             blq = bloque()
-            { return new NodoEstructura("class", id != null ? id.image : "error", t.beginLine, t.beginColumn); }
+            { return new NodoEstructura("class", id != null ? id.image : "error", blq, t.beginLine, t.beginColumn); }
           | t = <INTERFACE> 
             (
                 try {
@@ -1053,7 +1043,7 @@ Nodo declaracionEstructura() :
                 }
             )
             blq = bloque()
-            { return new NodoEstructura("interface", id != null ? id.image : "error", t.beginLine, t.beginColumn); }
+            { return new NodoEstructura("interface", id != null ? id.image : "error", blq, t.beginLine, t.beginColumn); }
           | t = <ENUM> 
             (
                 try {
@@ -1069,7 +1059,7 @@ Nodo declaracionEstructura() :
           | LOOKAHEAD( tipoDato() <OPERATOR> )
             tipoDato() <OPERATOR> ( <IGUAL> | <DIFERENTE> | <SUMA> | <RESTA> | <MULT> | <DIV> )
             <PAREN_IZQ> [ parametros() ] <PAREN_DER> blq = bloque()
-            { return new NodoEstructura("operator", "op", t != null ? t.beginLine : 0, 0); }
+            { return new NodoEstructura("operator", "op", blq, t != null ? t.beginLine : 0, 0); }
           | LOOKAHEAD( ( <VOID> | tipoDato() ) <IDENTIFICADOR> )
             ( <VOID> | tipoDato() ) 
             (
@@ -1080,7 +1070,7 @@ Nodo declaracionEstructura() :
                 }
             )
             ( blq = bloque() | <PUNTO_COMA> | ( <FLECHA> expresion() <PUNTO_COMA> ) )
-            { return new NodoEstructura("method", id != null ? id.image : "error", id != null ? id.beginLine : 0, id != null ? id.beginColumn : 0); }
+            { return new NodoEstructura("method", id != null ? id.image : "error", blq, id != null ? id.beginLine : 0, id != null ? id.beginColumn : 0); }
           | LOOKAHEAD( <IDENTIFICADOR> <PAREN_IZQ> )
             (
                 try {
@@ -1091,7 +1081,7 @@ Nodo declaracionEstructura() :
                 }
             )
             ( blq = bloque() | <PUNTO_COMA> )
-            { return new NodoEstructura("constructor", id != null ? id.image : "error", id != null ? id.beginLine : 0, id != null ? id.beginColumn : 0); }
+            { return new NodoEstructura("constructor", id != null ? id.image : "error", blq, id != null ? id.beginLine : 0, id != null ? id.beginColumn : 0); }
           | LOOKAHEAD( <PAREN_IZQ> )
             (
                 try {
@@ -1101,7 +1091,7 @@ Nodo declaracionEstructura() :
                 }
             )
             ( blq = bloque() | <PUNTO_COMA> )
-            { return new NodoEstructura("method", "error", t != null ? t.beginLine : 0, t != null ? t.beginColumn : 0); }
+            { return new NodoEstructura("method", "error", blq, t != null ? t.beginLine : 0, t != null ? t.beginColumn : 0); }
         )
     )
 }
@@ -1299,10 +1289,7 @@ Nodo factor() :
       LOOKAHEAD( llamadaMetodo() <CORCHETE_IZQ> )
         n = llamadaMetodo() <CORCHETE_IZQ> n2 = expresion() <CORCHETE_DER>
         { 
-            String varName = "";
-            if (n instanceof NodoLlamadaMetodo) varName = ((NodoLlamadaMetodo)n).getIdentificador();
-            else if (n instanceof NodoIdentificador) varName = ((NodoIdentificador)n).getNombre();
-            return new NodoAccesoArreglo(varName, n2, 0, 0); 
+                        return new NodoAccesoArreglo(n, n2, n.getLinea(), n.getColumna()); 
         }
       | LOOKAHEAD( llamadaMetodo() ( <INCREMENTO> | <DECREMENTO> ) )
         n = llamadaMetodo() ( signo = <INCREMENTO> | signo = <DECREMENTO> )

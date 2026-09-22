@@ -42,4 +42,9 @@ public class NodoDeclaracion extends Nodo {
         }
         return "Declaracion(" + tipoDato + " " + identificador + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

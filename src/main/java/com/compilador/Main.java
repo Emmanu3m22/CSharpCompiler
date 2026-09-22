@@ -58,7 +58,7 @@ public class Main {
 
             // 6. Mostrar AST generado
             System.out.println("── AST Generado ──");
-            System.out.println(ast);
+            System.out.println(new ASTPrinter().imprimir(ast));
             System.out.println();
 
             // 7. Ejecutar análisis semántico

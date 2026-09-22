@@ -16,6 +16,11 @@ public class NodoPrograma extends Nodo {
         this.sentencias = new ArrayList<>();
     }
 
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
+
     public NodoPrograma() {
         this(0, 0);
     }

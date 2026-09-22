@@ -43,5 +43,11 @@ public abstract class Nodo {
      * Método para aceptar un visitante (patrón Visitor).
      * Será usado por el AnalizadorSemantico para recorrer el AST.
      */
+    public abstract <T> T accept(NodoVisitor<T> visitor);
+
+    /**
+     * Método anterior para aceptar nodo visitante.
+     * @return La información del nodo.
+     */
     public abstract String toString();
 }

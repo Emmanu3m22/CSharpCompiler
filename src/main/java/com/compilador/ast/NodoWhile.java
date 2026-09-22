@@ -30,4 +30,9 @@ public class NodoWhile extends Nodo {
     public String toString() {
         return "While(" + condicion + ", " + cuerpo + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

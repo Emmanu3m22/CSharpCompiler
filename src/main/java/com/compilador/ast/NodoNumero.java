@@ -29,4 +29,9 @@ public class NodoNumero extends Nodo {
     public String toString() {
         return "Numero(" + valor + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

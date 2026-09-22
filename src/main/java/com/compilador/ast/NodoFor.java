@@ -47,4 +47,9 @@ public class NodoFor extends Nodo {
     public String toString() {
         return "For(" + inicializacion + "; " + condicion + "; " + actualizacion + ", " + cuerpo + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

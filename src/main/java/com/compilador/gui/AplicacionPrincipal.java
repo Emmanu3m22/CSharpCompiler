@@ -36,6 +36,7 @@ import com.compilador.AnalizadorConstants;
 import com.compilador.ParseException;
 import com.compilador.Token;
 import com.compilador.TokenMgrError;
+import com.compilador.ast.ASTPrinter;
 import com.compilador.ast.NodoPrograma;
 import com.compilador.errores.ErrorLexico;
 import com.compilador.errores.ErrorSintactico;
@@ -319,7 +320,7 @@ public class AplicacionPrincipal extends JFrame {
 
             // 5. Mostrar AST y errores sintácticos
             if (ast != null) {
-                panelSintactico.mostrarAST(ast.toString());
+                panelSintactico.mostrarAST(new ASTPrinter().imprimir(ast));
             } else {
                 panelSintactico.mostrarAST("(No se pudo generar el AST debido a errores de sintaxis)");
             }

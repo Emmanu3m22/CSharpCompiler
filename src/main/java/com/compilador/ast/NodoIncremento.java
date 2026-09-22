@@ -30,4 +30,9 @@ public class NodoIncremento extends Nodo {
     public String toString() {
         return "Incremento(" + identificador + operador + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

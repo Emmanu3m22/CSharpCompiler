@@ -33,4 +33,9 @@ public class NodoTernario extends Nodo {
     public String toString() {
         return "Ternario(" + condicion + " ? " + verdadero + " : " + falso + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

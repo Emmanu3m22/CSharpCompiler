@@ -33,4 +33,9 @@ public class NodoComando extends Nodo {
         }
         return "Comando(" + comando + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

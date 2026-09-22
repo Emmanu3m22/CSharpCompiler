@@ -41,4 +41,9 @@ public class NodoIf extends Nodo {
         }
         return "If(" + condicion + ", " + bloqueThen + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

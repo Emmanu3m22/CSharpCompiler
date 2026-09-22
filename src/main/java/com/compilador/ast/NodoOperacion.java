@@ -38,4 +38,9 @@ public class NodoOperacion extends Nodo {
     public String toString() {
         return "Operacion(" + izquierdo + " " + operador + " " + derecho + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

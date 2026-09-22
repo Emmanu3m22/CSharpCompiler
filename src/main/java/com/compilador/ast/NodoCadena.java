@@ -22,4 +22,9 @@ public class NodoCadena extends Nodo {
     public String toString() {
         return "Cadena(\"" + valor + "\")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

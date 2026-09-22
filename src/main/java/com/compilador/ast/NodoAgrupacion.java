@@ -19,6 +19,11 @@ public class NodoAgrupacion extends Nodo {
     }
 
     @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
+
+    @Override
     public String toString() {
         return "Agrupacion(" + expresion + ")";
     }

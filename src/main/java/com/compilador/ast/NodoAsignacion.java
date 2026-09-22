@@ -6,20 +6,31 @@ package com.compilador.ast;
  */
 public class NodoAsignacion extends Nodo {
 
-    /** Nombre de la variable a la que se asigna */
-    private final String identificador;
+    /** Expresión que recibe el valor asignado. */
+    private final Nodo destino;
 
     /** Expresión cuyo valor se asigna */
     private final Nodo expresion;
 
-    public NodoAsignacion(String identificador, Nodo expresion, int linea, int columna) {
+    public NodoAsignacion(Nodo destino, Nodo expresion, int linea, int columna) {
         super(linea, columna);
-        this.identificador = identificador;
+        this.destino = destino;
         this.expresion = expresion;
     }
 
+    /** Constructor compatible con clientes que aún asignan a una variable simple. */
+    public NodoAsignacion(String identificador, Nodo expresion, int linea, int columna) {
+        this(new NodoIdentificador(identificador, linea, columna), expresion, linea, columna);
+    }
+
+    public Nodo getDestino() {
+        return destino;
+    }
+
     public String getIdentificador() {
-        return identificador;
+        return destino instanceof NodoIdentificador
+                ? ((NodoIdentificador) destino).getNombre()
+                : null;
     }
 
     public Nodo getExpresion() {
@@ -28,6 +39,11 @@ public class NodoAsignacion extends Nodo {
 
     @Override
     public String toString() {
-        return "Asignacion(" + identificador + " = " + expresion + ")";
+        return "Asignacion(" + destino + " = " + expresion + ")";
+    }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
     }
 }

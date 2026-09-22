@@ -14,7 +14,7 @@ import java.util.List;
  * NOTA: Este es un esqueleto funcional. El equipo semántico completará
  * las validaciones específicas del lenguaje.
  */
-public class AnalizadorSemantico {
+public class AnalizadorSemantico implements NodoVisitor<Void> {
 
     private final TablaSimbolos tablaSimbolos;
     private final List<ErrorSemantico> errores;
@@ -31,25 +31,204 @@ public class AnalizadorSemantico {
      */
     public List<ErrorSemantico> analizar(NodoPrograma programa) {
         errores.clear();
-        for (Nodo sentencia : programa.getSentencias()) {
-            analizarNodo(sentencia);
-        }
+        programa.accept(this);
         return errores;
     }
 
     /**
-     * Analiza un nodo individual del AST según su tipo.
-     * Despacha al método de análisis específico para cada tipo de nodo.
+     * Recorre un programa mediante el doble despacho de cada nodo.
      */
-    private void analizarNodo(Nodo nodo) {
-        if (nodo instanceof NodoDeclaracion) {
-            analizarDeclaracion((NodoDeclaracion) nodo);
-        } else if (nodo instanceof NodoAsignacion) {
-            analizarAsignacion((NodoAsignacion) nodo);
-        } else if (nodo instanceof NodoComando) {
-            analizarComando((NodoComando) nodo);
+    @Override
+    public Void visitar(NodoPrograma nodo) {
+        visitarHijos(nodo.getSentencias());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoDeclaracion nodo) {
+        analizarDeclaracion(nodo);
+        visitarHijo(nodo.getInicializacion());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoAsignacion nodo) {
+        analizarAsignacion(nodo);
+        visitarHijo(nodo.getDestino());
+        visitarHijo(nodo.getExpresion());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoComando nodo) {
+        analizarComando(nodo);
+        visitarHijo(nodo.getArgumento());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoBloque nodo) {
+        visitarHijos(nodo.getSentencias());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoAccesoArreglo nodo) {
+        visitarHijo(nodo.getArreglo());
+        visitarHijo(nodo.getIndice());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoCasteo nodo) {
+        visitarHijo(nodo.getExpresion());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoAgrupacion nodo) {
+        visitarHijo(nodo.getExpresion());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoNegacionLogica nodo) {
+        visitarHijo(nodo.getExpresion());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoOperacion nodo) {
+        visitarHijo(nodo.getIzquierdo());
+        visitarHijo(nodo.getDerecho());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoOperacionLogica nodo) {
+        visitarHijo(nodo.getIzquierdo());
+        visitarHijo(nodo.getDerecho());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoOperacionRelacional nodo) {
+        visitarHijo(nodo.getIzquierdo());
+        visitarHijo(nodo.getDerecho());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoIf nodo) {
+        visitarHijo(nodo.getCondicion());
+        visitarHijo(nodo.getBloqueThen());
+        visitarHijo(nodo.getBloqueElse());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoWhile nodo) {
+        visitarHijo(nodo.getCondicion());
+        visitarHijo(nodo.getCuerpo());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoDoWhile nodo) {
+        visitarHijo(nodo.getCuerpo());
+        visitarHijo(nodo.getCondicion());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoFor nodo) {
+        visitarHijo(nodo.getInicializacion());
+        visitarHijo(nodo.getCondicion());
+        visitarHijo(nodo.getActualizacion());
+        visitarHijo(nodo.getCuerpo());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoSwitch nodo) {
+        visitarHijo(nodo.getExpresion());
+        visitarHijos(nodo.getCasos());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoCaso nodo) {
+        visitarHijo(nodo.getValor());
+        visitarHijos(nodo.getSentencias());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoTernario nodo) {
+        visitarHijo(nodo.getCondicion());
+        visitarHijo(nodo.getVerdadero());
+        visitarHijo(nodo.getFalso());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoLlamadaMetodo nodo) {
+        visitarHijos(nodo.getArgumentos());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoInstanciacion nodo) {
+        visitarHijos(nodo.getArgumentos());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoArreglo nodo) {
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoEstructura nodo) {
+        visitarHijo(nodo.getCuerpo());
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoIncremento nodo) {
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoIdentificador nodo) {
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoCadena nodo) {
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoBooleano nodo) {
+        return null;
+    }
+
+    @Override
+    public Void visitar(NodoNumero nodo) {
+        return null;
+    }
+
+    private void visitarHijo(Nodo nodo) {
+        if (nodo != null) {
+            nodo.accept(this);
         }
-        // TODO: Agregar más casos conforme se definan nuevos tipos de nodos
+    }
+
+    private void visitarHijos(List<? extends Nodo> nodos) {
+        for (Nodo nodo : nodos) {
+            visitarHijo(nodo);
+        }
     }
 
     /**
@@ -93,14 +272,18 @@ public class AnalizadorSemantico {
      * - Que la variable esté declarada
      */
     private void analizarAsignacion(NodoAsignacion nodo) {
-        if (!tablaSimbolos.existe(nodo.getIdentificador())) {
+        String identificador = nodo.getIdentificador();
+        if (identificador == null) {
+            return;
+        }
+        if (!tablaSimbolos.existe(identificador)) {
             errores.add(new ErrorSemantico(
-                    "Variable '" + nodo.getIdentificador() + "' no ha sido declarada",
+                    "Variable '" + identificador + "' no ha sido declarada",
                     "NO_DECLARADA",
                     nodo.getLinea(), nodo.getColumna()
             ));
         } else {
-            Simbolo simbolo = tablaSimbolos.buscar(nodo.getIdentificador());
+            Simbolo simbolo = tablaSimbolos.buscar(identificador);
             if (simbolo != null) {
                 simbolo.setInicializado(true);
             }

@@ -22,4 +22,9 @@ public class NodoIdentificador extends Nodo {
     public String toString() {
         return "Identificador(" + nombre + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }

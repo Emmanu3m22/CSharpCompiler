@@ -39,4 +39,9 @@ public class NodoOperacionRelacional extends Nodo {
     public String toString() {
         return "Relacional(" + izquierdo + " " + operador + " " + derecho + ")";
     }
+
+    @Override
+    public <T> T accept(NodoVisitor<T> visitor) {
+        return visitor.visitar(this);
+    }
 }
