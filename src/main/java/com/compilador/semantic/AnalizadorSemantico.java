@@ -339,20 +339,14 @@ public class AnalizadorSemantico implements NodoVisitor<Void> {
 
     /**
      * Valida una declaración de variable:
-     * - Que no esté ya declarada en el mismo ámbito
-     * - Que el tipo sea válido
+     * - Que no esté ya declarada en el mismo ámbito (REDECLARACION)
+     * - Registra la variable siempre, incluso con tipo desconocido,
+     *   para evitar falsos NO_DECLARADA en las líneas siguientes.
      */
     private void analizarDeclaracion(NodoDeclaracion nodo) {
         TipoDato tipo = TipoDato.desdeString(nodo.getTipoDato());
-
-        if (tipo == TipoDato.DESCONOCIDO) {
-            errores.add(new ErrorSemantico(
-                    "Tipo de dato no reconocido: '" + nodo.getTipoDato() + "'",
-                    "TIPO_INVALIDO",
-                    nodo.getLinea(), nodo.getColumna()
-            ));
-            return;
-        }
+        // Si el tipo es desconocido usamos DESCONOCIDO como tipo
+        // sin emitir error, ya que esa validación fue eliminada.
 
         Simbolo simbolo = new Simbolo(
                 nodo.getIdentificador(), tipo,
