@@ -216,4 +216,235 @@ public class SemanticoTest {
 
         assertFalse(sem.tieneErrores(), sem.getErrores().toString());
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Tests de la regla: Variable No Declarada (uso en expresiones)
+    // ═══════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("Uso de variable no declarada en expresión aritmética genera error")
+    void testVariableNoDeclaradaEnExpresion() throws Exception {
+        // z no existe, x sí
+        String codigo = "int x = 5;\nint y = x + z;";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        List<ErrorSemantico> errores = sem.getErrores();
+        assertEquals(1, errores.size());
+        assertEquals("NO_DECLARADA", errores.get(0).getTipoError());
+        assertTrue(errores.get(0).getMensaje().contains("z"));
+    }
+
+    @Test
+    @DisplayName("Uso de variables declaradas en expresión aritmética no genera error")
+    void testVariablesDeclaradasEnExpresionAritmetica() throws Exception {
+        String codigo = "int a = 3;\nint b = 4;\nint c = a + b;";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertFalse(sem.tieneErrores(), sem.getErrores().toString());
+    }
+
+    @Test
+    @DisplayName("Variable no declarada en condición de if genera error")
+    void testVariableNoDeclaradaEnCondicionIf() throws Exception {
+        // condicion usa 'x' que no fue declarada
+        String codigo = "if (x > 5) { int y = 1; }";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        assertTrue(sem.getErrores().stream()
+                .anyMatch(e -> e.getTipoError().equals("NO_DECLARADA")
+                        && e.getMensaje().contains("x")));
+    }
+
+    @Test
+    @DisplayName("Variable declarada antes del if es válida en su condición")
+    void testVariableDeclaradaEnCondicionIf() throws Exception {
+        String codigo = "int x = 10;\nif (x > 5) { int y = 1; }";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertFalse(sem.tieneErrores(), sem.getErrores().toString());
+    }
+
+    @Test
+    @DisplayName("Variable no declarada en condición de while genera error")
+    void testVariableNoDeclaradaEnWhile() throws Exception {
+        String codigo = "while (contador < 10) { int x = 1; }";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        assertTrue(sem.getErrores().stream()
+                .anyMatch(e -> e.getTipoError().equals("NO_DECLARADA")
+                        && e.getMensaje().contains("contador")));
+    }
+
+    @Test
+    @DisplayName("Variable no declarada en cuerpo de while genera error")
+    void testVariableNoDeclaradaEnCuerpoWhile() throws Exception {
+        String codigo = "int i = 0;\nwhile (i < 5) { Console.WriteLine(resultado); i = i + 1; }";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        assertTrue(sem.getErrores().stream()
+                .anyMatch(e -> e.getTipoError().equals("NO_DECLARADA")
+                        && e.getMensaje().contains("resultado")));
+    }
+
+    @Test
+    @DisplayName("Incremento de variable no declarada genera error")
+    void testIncrementoVariableNoDeclarada() throws Exception {
+        String codigo = "x++;";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        assertEquals(1, sem.getErrores().size());
+        assertEquals("NO_DECLARADA", sem.getErrores().get(0).getTipoError());
+        assertTrue(sem.getErrores().get(0).getMensaje().contains("x"));
+    }
+
+    @Test
+    @DisplayName("Decremento de variable declarada no genera error")
+    void testDecrementoVariableDeclarada() throws Exception {
+        String codigo = "int i = 10;\ni--;";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertFalse(sem.tieneErrores(), sem.getErrores().toString());
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Tests de la regla: Aislamiento de Ámbitos (Scopes)
+    // ═══════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("Variable declarada dentro de if NO es visible fuera del bloque")
+    void testAislamientoAmbitoIf() throws Exception {
+        // 'local' se declara dentro del if y se usa fuera → debe generar error
+        String codigo = "int x = 5;\n"
+                + "if (x > 0) {\n"
+                + "    int local = 99;\n"
+                + "}\n"
+                + "Console.WriteLine(local);";  // 'local' ya no existe aquí
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        assertTrue(sem.getErrores().stream()
+                .anyMatch(e -> e.getTipoError().equals("NO_DECLARADA")
+                        && e.getMensaje().contains("local")));
+    }
+
+    @Test
+    @DisplayName("Variable declarada dentro de while NO es visible fuera del bloque")
+    void testAislamientoAmbitoWhile() throws Exception {
+        String codigo = "int i = 0;\n"
+                + "while (i < 3) {\n"
+                + "    int temp = i * 2;\n"
+                + "    i = i + 1;\n"
+                + "}\n"
+                + "Console.WriteLine(temp);";   // 'temp' no existe aquí
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        assertTrue(sem.getErrores().stream()
+                .anyMatch(e -> e.getTipoError().equals("NO_DECLARADA")
+                        && e.getMensaje().contains("temp")));
+    }
+
+    @Test
+    @DisplayName("Variable del for NO es visible fuera del bloque for")
+    void testAislamientoAmbitoFor() throws Exception {
+        // La variable 'i' del for no debe ser visible después del for
+        String codigo = "for (int i = 0; i < 5; i++) {\n"
+                + "    Console.WriteLine(i);\n"
+                + "}\n"
+                + "Console.WriteLine(i);";   // 'i' no existe aquí
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        assertTrue(sem.getErrores().stream()
+                .anyMatch(e -> e.getTipoError().equals("NO_DECLARADA")
+                        && e.getMensaje().contains("i")));
+    }
+
+    @Test
+    @DisplayName("Variable global es visible dentro de bloques anidados")
+    void testVariableGlobalVisibleEnBloques() throws Exception {
+        String codigo = "int total = 0;\n"
+                + "int i = 0;\n"
+                + "while (i < 5) {\n"
+                + "    total = total + i;\n"   // 'total' e 'i' son globales
+                + "    i = i + 1;\n"
+                + "}\n"
+                + "Console.WriteLine(total);";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertFalse(sem.tieneErrores(), sem.getErrores().toString());
+    }
+
+    @Test
+    @DisplayName("Misma variable puede declararse en bloques hermanos independientes")
+    void testRedeclaracionEnBloquesSeparados() throws Exception {
+        // 'tmp' en el if y 'tmp' en el else son ámbitos distintos → válido
+        String codigo = "int x = 1;\n"
+                + "if (x > 0) {\n"
+                + "    int tmp = 10;\n"
+                + "    Console.WriteLine(tmp);\n"
+                + "} else {\n"
+                + "    int tmp = 20;\n"   // mismo nombre, diferente ámbito
+                + "    Console.WriteLine(tmp);\n"
+                + "}";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertFalse(sem.tieneErrores(), sem.getErrores().toString());
+    }
+
+    @Test
+    @DisplayName("Múltiples variables no declaradas generan un error por cada una")
+    void testMultiplesVariablesNoDeclaradas() throws Exception {
+        // Usar a, b, c sin declararlas
+        String codigo = "int resultado = a + b + c;";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        // Debe haber exactamente 3 errores: a, b y c
+        long erroresNoDeclarada = sem.getErrores().stream()
+                .filter(e -> e.getTipoError().equals("NO_DECLARADA"))
+                .count();
+        assertEquals(3, erroresNoDeclarada);
+    }
+
+    @Test
+    @DisplayName("Variable usada en do-while sin declarar genera error")
+    void testVariableNoDeclaradaEnDoWhile() throws Exception {
+        String codigo = "do {\n"
+                + "    Console.WriteLine(valor);\n"   // 'valor' no declarada
+                + "} while (true);";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertTrue(sem.tieneErrores());
+        assertTrue(sem.getErrores().stream()
+                .anyMatch(e -> e.getTipoError().equals("NO_DECLARADA")
+                        && e.getMensaje().contains("valor")));
+    }
+
+    @Test
+    @DisplayName("Programa completo válido no genera ningún error semántico")
+    void testProgramaCompletoValido() throws Exception {
+        String codigo = "int x = 10;\n"
+                + "int y = 20;\n"
+                + "int suma = x + y;\n"
+                + "if (suma > 25) {\n"
+                + "    Console.WriteLine(suma);\n"
+                + "} else {\n"
+                + "    int diferencia = y - x;\n"
+                + "    Console.WriteLine(diferencia);\n"
+                + "}\n"
+                + "int i = 0;\n"
+                + "while (i < 3) {\n"
+                + "    i = i + 1;\n"
+                + "}\n"
+                + "Console.WriteLine(i);";
+        AnalizadorSemantico sem = analizar(codigo);
+
+        assertFalse(sem.tieneErrores(), sem.getErrores().toString());
+    }
 }

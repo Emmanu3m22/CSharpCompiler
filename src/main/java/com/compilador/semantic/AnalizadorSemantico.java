@@ -54,8 +54,15 @@ public class AnalizadorSemantico implements NodoVisitor<Void> {
 
     @Override
     public Void visitar(NodoAsignacion nodo) {
+        // analizarAsignacion valida el identificador destino simple (String).
+        // Solo visitamos nodo.getDestino() si es un destino compuesto (ej: arr[i])
+        // para evitar reportar el error NO_DECLARADA dos veces.
         analizarAsignacion(nodo);
-        visitarHijo(nodo.getDestino());
+        if (nodo.getIdentificador() == null) {
+            // Destino compuesto (NodoAccesoArreglo, etc.): visitar para validar sus partes
+            visitarHijo(nodo.getDestino());
+        }
+        // Siempre visitar la expresión del lado derecho
         visitarHijo(nodo.getExpresion());
         return null;
     }
@@ -69,7 +76,10 @@ public class AnalizadorSemantico implements NodoVisitor<Void> {
 
     @Override
     public Void visitar(NodoBloque nodo) {
+        // Cada bloque abre su propio ámbito para soportar variables locales
+        tablaSimbolos.entrarAmbito("bloque_" + nodo.getLinea() + "_" + nodo.getColumna());
         visitarHijos(nodo.getSentencias());
+        tablaSimbolos.salirAmbito();
         return null;
     }
 
@@ -121,7 +131,9 @@ public class AnalizadorSemantico implements NodoVisitor<Void> {
 
     @Override
     public Void visitar(NodoIf nodo) {
+        // La condición se evalúa en el ámbito actual
         visitarHijo(nodo.getCondicion());
+        // Los bloques then/else manejan su propio ámbito en NodoBloque
         visitarHijo(nodo.getBloqueThen());
         visitarHijo(nodo.getBloqueElse());
         return null;
@@ -129,24 +141,32 @@ public class AnalizadorSemantico implements NodoVisitor<Void> {
 
     @Override
     public Void visitar(NodoWhile nodo) {
+        // La condición se evalúa en el ámbito actual
         visitarHijo(nodo.getCondicion());
+        // El cuerpo (NodoBloque) gestiona su propio ámbito
         visitarHijo(nodo.getCuerpo());
         return null;
     }
 
     @Override
     public Void visitar(NodoDoWhile nodo) {
+        // El cuerpo (NodoBloque) gestiona su propio ámbito
         visitarHijo(nodo.getCuerpo());
+        // La condición se evalúa en el ámbito actual (después del bloque)
         visitarHijo(nodo.getCondicion());
         return null;
     }
 
     @Override
     public Void visitar(NodoFor nodo) {
+        // El for abre su propio ámbito para la variable de inicialización (ej: int i = 0)
+        tablaSimbolos.entrarAmbito("for_" + nodo.getLinea() + "_" + nodo.getColumna());
         visitarHijo(nodo.getInicializacion());
         visitarHijo(nodo.getCondicion());
         visitarHijo(nodo.getActualizacion());
+        // El cuerpo (NodoBloque) abre un sub-ámbito adicional dentro del for
         visitarHijo(nodo.getCuerpo());
+        tablaSimbolos.salirAmbito();
         return null;
     }
 
@@ -265,11 +285,28 @@ public class AnalizadorSemantico implements NodoVisitor<Void> {
 
     @Override
     public Void visitar(NodoIncremento nodo) {
+        // Validar que la variable a incrementar/decrementar exista
+        if (nodo.getIdentificador() != null && !tablaSimbolos.existe(nodo.getIdentificador())) {
+            errores.add(new ErrorSemantico(
+                    "Variable '" + nodo.getIdentificador() + "' no ha sido declarada",
+                    "NO_DECLARADA",
+                    nodo.getLinea(), nodo.getColumna()
+            ));
+        }
         return null;
     }
 
     @Override
     public Void visitar(NodoIdentificador nodo) {
+        // Validar que el identificador usado haya sido declarado previamente
+        String nombre = nodo.getNombre();
+        if (nombre != null && !tablaSimbolos.existe(nombre)) {
+            errores.add(new ErrorSemantico(
+                    "Variable '" + nombre + "' no ha sido declarada",
+                    "NO_DECLARADA",
+                    nodo.getLinea(), nodo.getColumna()
+            ));
+        }
         return null;
     }
 
@@ -339,10 +376,13 @@ public class AnalizadorSemantico implements NodoVisitor<Void> {
     /**
      * Valida una asignación:
      * - Que la variable esté declarada
+     * Nota: si el destino es un NodoIdentificador simple, se valida aquí;
+     * para destinos compuestos (arreglos), el visitar(NodoAccesoArreglo) lo cubre.
      */
     private void analizarAsignacion(NodoAsignacion nodo) {
         String identificador = nodo.getIdentificador();
         if (identificador == null) {
+            // Destino compuesto (ej: arr[i] = ...), ya será validado por los nodos hijos
             return;
         }
         if (!tablaSimbolos.existe(identificador)) {
