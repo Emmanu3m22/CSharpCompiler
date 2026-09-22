@@ -40,6 +40,8 @@ import com.compilador.ast.ASTPrinter;
 import com.compilador.ast.NodoPrograma;
 import com.compilador.errores.ErrorLexico;
 import com.compilador.errores.ErrorSintactico;
+import com.compilador.semantic.AnalizadorSemantico;
+import com.compilador.semantic.ErrorSemantico;
 
 /**
  * Ventana principal del compilador LenguajeCSharp.
@@ -54,6 +56,7 @@ public class AplicacionPrincipal extends JFrame {
     private final TablaTokens tablaTokens;
     private final PanelErrores panelErrores;
     private final PanelSintactico panelSintactico;
+    private final PanelSemantico panelSemantico;
     private final PanelResumen panelResumen;
     private JTabbedPane pestanas;
 
@@ -93,6 +96,7 @@ public class AplicacionPrincipal extends JFrame {
         tablaTokens = new TablaTokens();
         panelErrores = new PanelErrores((linea, columna) -> editor.irAUbicacion(linea, columna));
         panelSintactico = new PanelSintactico((linea, columna) -> editor.irAUbicacion(linea, columna));
+        panelSemantico = new PanelSemantico();
         panelResumen = new PanelResumen();
 
         // ── Ensamblar layout ──
@@ -233,6 +237,7 @@ public class AplicacionPrincipal extends JFrame {
         pestanas.addTab("Errores", panelErrores);
         pestanas.addTab("Léxico", tablaTokens);
         pestanas.addTab("Sintáctico", panelSintactico);
+        pestanas.addTab("Semántico", panelSemantico);
 
         // Split pane
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, editor, pestanas);
@@ -321,22 +326,37 @@ public class AplicacionPrincipal extends JFrame {
             // 5. Mostrar AST y errores sintácticos
             if (ast != null) {
                 panelSintactico.mostrarAST(new ASTPrinter().imprimir(ast));
+                
+                // 5a. Análisis Semántico
+                AnalizadorSemantico semantico = new AnalizadorSemantico();
+                List<ErrorSemantico> erroresSem = semantico.analizar(ast);
+                panelSemantico.cargarSimbolos(semantico.getTablaSimbolos());
+                panelSemantico.cargarErrores(erroresSem);
+                
+                // 6. Actualizar resumen
+                panelResumen.actualizar(
+                        tokensList.size(),
+                        erroresLex.size(),
+                        erroresSint.size(),
+                        erroresSem.size()
+                );
             } else {
                 panelSintactico.mostrarAST("(No se pudo generar el AST debido a errores de sintaxis)");
+                panelSemantico.limpiar();
+                
+                // 6. Actualizar resumen
+                panelResumen.actualizar(
+                        tokensList.size(),
+                        erroresLex.size(),
+                        erroresSint.size(),
+                        0
+                );
             }
             panelSintactico.cargarErrores(erroresSint);
 
             // 5b. Cargar errores en el panel elegante
             panelErrores.cargarErroresLexicos(erroresLex);
             panelErrores.cargarErroresSintacticos(erroresSint);
-
-            // 6. Actualizar resumen
-            panelResumen.actualizar(
-                    tokensList.size(),
-                    erroresLex.size(),
-                    erroresSint.size(),
-                    0 // Sin errores semánticos
-            );
 
             // 7. Ir a la pestaña más relevante
             if (!erroresLex.isEmpty() || !erroresSint.isEmpty()) {
@@ -510,6 +530,7 @@ public class AplicacionPrincipal extends JFrame {
         tablaTokens.limpiar();
         panelErrores.limpiar();
         panelSintactico.limpiar();
+        panelSemantico.limpiar();
         panelResumen.limpiar();
     }
 
