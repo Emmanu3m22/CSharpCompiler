@@ -332,6 +332,7 @@ public class AplicacionPrincipal extends JFrame {
                 List<ErrorSemantico> erroresSem = semantico.analizar(ast);
                 panelSemantico.cargarSimbolos(semantico.getTablaSimbolos());
                 panelSemantico.cargarErrores(erroresSem);
+                panelErrores.cargarErroresSemanticos(erroresSem);
                 
                 // 6. Actualizar resumen
                 panelResumen.actualizar(
