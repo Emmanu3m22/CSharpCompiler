@@ -76,8 +76,15 @@ public class Main {
             // 8. Mostrar tabla de símbolos
             System.out.println("── Tabla de Símbolos ──");
             System.out.println(semantico.getTablaSimbolos());
+            System.out.println();
 
-            // 9. Resumen final
+            // 9. Código intermedio (Notación Polaca y Cuádruplos)
+            com.compilador.intermedio.GeneradorCodigoIntermedio genIntermedio =
+                    new com.compilador.intermedio.GeneradorCodigoIntermedio();
+            com.compilador.intermedio.ProgramaIntermedio intermedio = genIntermedio.generar(ast);
+            System.out.println(genIntermedio.imprimirReporte(intermedio));
+
+            // 10. Resumen final
             System.out.println("── Resumen ──");
             int totalErrores = erroresLex.size() + erroresSint.size() + erroresSem.size();
             if (totalErrores == 0) {

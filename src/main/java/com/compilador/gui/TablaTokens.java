@@ -58,8 +58,8 @@ public class TablaTokens extends JPanel {
         tabla.setFont(Colores.FUENTE_TABLA);
         tabla.setBackground(Colores.FONDO_TABLA_ROW1);
         tabla.setForeground(Colores.TEXTO_NORMAL);
-        tabla.setSelectionBackground(Colores.FONDO_SELECCION);
-        tabla.setSelectionForeground(Colores.TEXTO_NORMAL);
+        tabla.setSelectionBackground(Colores.SEL_FONDO);
+        tabla.setSelectionForeground(Colores.SEL_TEXTO);
         tabla.setGridColor(Colores.BORDE);
         tabla.setRowHeight(24);
         tabla.setShowVerticalLines(false);
@@ -111,7 +111,7 @@ public class TablaTokens extends JPanel {
         JScrollPane scroll = new JScrollPane(tabla);
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.getViewport().setBackground(Colores.FONDO_PANEL);
-        add(scroll, BorderLayout.CENTER);
+        add(Colores.conMargen(scroll), BorderLayout.CENTER);
     }
 
     /**

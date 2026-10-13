@@ -193,6 +193,13 @@ public class ASTPrinter implements NodoVisitor<Void> {
     }
 
     @Override
+    public Void visitar(NodoMenosUnario nodo) {
+        linea("MenosUnario");
+        hijos(nodo("Expresion", nodo.getExpresion()));
+        return null;
+    }
+
+    @Override
     public Void visitar(NodoLlamadaMetodo nodo) {
         linea("LlamadaMetodo: " + nodo.getIdentificador());
         hijos(nombrados("Argumentos", nodo.getArgumentos()));

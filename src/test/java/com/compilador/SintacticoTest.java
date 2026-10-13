@@ -1088,4 +1088,47 @@ public class SintacticoTest {
         assertEquals(0, parser.getErroresLexicos().size(), 
             "No debe haber errores léxicos. Encontrados: " + parser.getErroresLexicos());
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Tests de resta sin espacios y menos unario
+    // ═══════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("Parsea resta sin espacios: x = a-5; y x = 3-2;")
+    void testRestaSinEspacios() throws Exception {
+        NodoPrograma p1 = parsear("x = a-5;");
+        assertEquals(1, p1.getSentencias().size());
+        NodoAsignacion a1 = (NodoAsignacion) p1.getSentencias().get(0);
+        assertInstanceOf(NodoOperacion.class, a1.getExpresion());
+        NodoOperacion op1 = (NodoOperacion) a1.getExpresion();
+        assertEquals("-", op1.getOperador());
+        assertEquals("a", ((NodoIdentificador) op1.getIzquierdo()).getNombre());
+        assertEquals("5", ((NodoNumero) op1.getDerecho()).getValor());
+
+        NodoPrograma p2 = parsear("x = 3-2;");
+        assertEquals(1, p2.getSentencias().size());
+        NodoAsignacion a2 = (NodoAsignacion) p2.getSentencias().get(0);
+        assertInstanceOf(NodoOperacion.class, a2.getExpresion());
+        NodoOperacion op2 = (NodoOperacion) a2.getExpresion();
+        assertEquals("-", op2.getOperador());
+        assertEquals("3", ((NodoNumero) op2.getIzquierdo()).getValor());
+        assertEquals("2", ((NodoNumero) op2.getDerecho()).getValor());
+    }
+
+    @Test
+    @DisplayName("Parsea menos unario sobre variable y expresión: x = -a; y x = -(a+b);")
+    void testMenosUnario() throws Exception {
+        NodoPrograma p1 = parsear("x = -a;");
+        assertEquals(1, p1.getSentencias().size());
+        NodoAsignacion a1 = (NodoAsignacion) p1.getSentencias().get(0);
+        assertInstanceOf(NodoMenosUnario.class, a1.getExpresion());
+        NodoMenosUnario u1 = (NodoMenosUnario) a1.getExpresion();
+        assertEquals("a", ((NodoIdentificador) u1.getExpresion()).getNombre());
+
+        NodoPrograma p2 = parsear("x = -(a + b);");
+        assertEquals(1, p2.getSentencias().size());
+        NodoAsignacion a2 = (NodoAsignacion) p2.getSentencias().get(0);
+        assertInstanceOf(NodoMenosUnario.class, a2.getExpresion());
+    }
 }
+

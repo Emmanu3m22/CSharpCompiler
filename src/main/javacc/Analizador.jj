@@ -1247,7 +1247,9 @@ Nodo expresionAditiva() :
 {
     Nodo izq;
     Nodo der;
+    Nodo f;
     Token op;
+    Token neg;
 }
 {
     izq = termino()
@@ -1260,6 +1262,21 @@ Nodo expresionAditiva() :
                 op.beginLine, op.beginColumn
             );
         }
+      |
+        /*
+         * Resta sin espacios: "a-5" o "3-2". Por la regla del lexema más largo
+         * el léxico produce un literal negativo ("-5"); aquí se reinterpreta
+         * como el operador "-" seguido del literal positivo, respetando que
+         * * / % tienen mayor precedencia: a-5*2  =>  a - (5*2).
+         */
+        ( neg = <NUMERO_ENTERO_NEGATIVO> | neg = <NUMERO_DECIMAL_NEGATIVO> )
+        { der = new NodoNumero(neg.image.substring(1), neg.beginLine, neg.beginColumn + 1); }
+        (
+            ( op = <MULT> | op = <DIV> | op = <MOD> )
+            f = factor()
+            { der = new NodoOperacion(der, op.image, f, op.beginLine, op.beginColumn); }
+        )*
+        { izq = new NodoOperacion(izq, "-", der, neg.beginLine, neg.beginColumn); }
     )*
     { return izq; }
 }
@@ -1325,7 +1342,7 @@ Nodo factor() :
       | LOOKAHEAD( llamadaMetodo() )
         n = llamadaMetodo()
         { return n; }
-      | LOOKAHEAD( <PAREN_IZQ> tipoDato() <PAREN_DER> )
+      | LOOKAHEAD( <PAREN_IZQ> tipoDato() <PAREN_DER> factor() )
         <PAREN_IZQ> t = tipoDato() <PAREN_DER> n = factor()
         { return new NodoCasteo(t.image, n, t.beginLine, t.beginColumn); }
       | <NEW> t = tipoDato() 
@@ -1344,17 +1361,23 @@ Nodo factor() :
             [ <LLAVE_IZQ> [ listaValoresArreglo() ] <LLAVE_DER> ]
             { return new NodoInstanciacion(t.image, argList, t.beginLine, t.beginColumn); }
         )
-      | [ signo = <RESTA> ]
-        (
-            t = <NUMERO_ENTERO>
-            { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
-          | t = <NUMERO_DECIMAL>
-            { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
-          | t = <NUMERO_ENTERO_NEGATIVO>
-            { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
-          | t = <NUMERO_DECIMAL_NEGATIVO>
-            { return new NodoNumero((signo != null ? "-" : "") + t.image, (signo != null ? signo.beginLine : t.beginLine), (signo != null ? signo.beginColumn : t.beginColumn)); }
-        )
+      | signo = <RESTA> n = factor()
+        {
+            // Menos unario: sobre un literal positivo se pliega en el número (- 5 => -5)
+            // para conservar el comportamiento previo; en otro caso (-a, -(b+c)) se crea el nodo.
+            if (n instanceof NodoNumero && !((NodoNumero) n).getValor().startsWith("-")) {
+                return new NodoNumero("-" + ((NodoNumero) n).getValor(), signo.beginLine, signo.beginColumn);
+            }
+            return new NodoMenosUnario(n, signo.beginLine, signo.beginColumn);
+        }
+      | t = <NUMERO_ENTERO>
+        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
+      | t = <NUMERO_DECIMAL>
+        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
+      | t = <NUMERO_ENTERO_NEGATIVO>
+        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
+      | t = <NUMERO_DECIMAL_NEGATIVO>
+        { return new NodoNumero(t.image, t.beginLine, t.beginColumn); }
       | t = <IDENTIFICADOR>
         { return new NodoIdentificador(t.image, t.beginLine, t.beginColumn); }
       | t = <CADENA>

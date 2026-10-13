@@ -38,4 +38,5 @@ public interface NodoVisitor<T> {
     T visitar(NodoOperacion nodo);
     T visitar(NodoOperacionRelacional nodo);
     T visitar(NodoIncremento nodo);
+    T visitar(NodoMenosUnario nodo);
 }

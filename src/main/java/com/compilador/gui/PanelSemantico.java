@@ -29,7 +29,7 @@ public class PanelSemantico extends JPanel {
     private static final String[] COL_ERRORES  = {"Línea", "Columna", "Tipo Error", "Mensaje"};
 
     public PanelSemantico() {
-        setLayout(new BorderLayout(0, 4));
+        setLayout(new BorderLayout(0, 0));
         setBackground(Colores.FONDO_PANEL);
 
         // ── Encabezado ──
@@ -54,7 +54,7 @@ public class PanelSemantico extends JPanel {
         split.setBackground(Colores.FONDO_PANEL);
         split.setDividerLocation(180);
         split.setDividerSize(4);
-        split.setBorder(BorderFactory.createEmptyBorder());
+        Colores.estilizarSplit(split);
 
         // Tabla de símbolos
         modeloSimbolos = new DefaultTableModel(COL_SIMBOLOS, 0) {
@@ -66,16 +66,9 @@ public class PanelSemantico extends JPanel {
         tablaSimbolos = crearTabla(modeloSimbolos, Colores.ACENTO_SEMANTICO, Colores.TEXTO_NORMAL);
 
         JScrollPane scrollSim = new JScrollPane(tablaSimbolos);
-        scrollSim.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createMatteBorder(1, 0, 0, 0, Colores.BORDE),
-            "Tabla de Símbolos",
-            javax.swing.border.TitledBorder.LEFT,
-            javax.swing.border.TitledBorder.TOP,
-            Colores.FUENTE_PEQUENA,
-            Colores.TEXTO_TENUE
-        ));
+        scrollSim.setBorder(BorderFactory.createEmptyBorder());
         scrollSim.getViewport().setBackground(Colores.FONDO_PANEL);
-        split.setTopComponent(scrollSim);
+        split.setTopComponent(Colores.conMargen(scrollSim));
 
         // Tabla de errores
         modeloErrores = new DefaultTableModel(COL_ERRORES, 0) {
@@ -87,16 +80,9 @@ public class PanelSemantico extends JPanel {
         tablaErrores = crearTabla(modeloErrores, Colores.ACENTO_SEMANTICO, Colores.ERROR);
 
         JScrollPane scrollErr = new JScrollPane(tablaErrores);
-        scrollErr.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createMatteBorder(1, 0, 0, 0, Colores.BORDE),
-            "Errores Semánticos",
-            javax.swing.border.TitledBorder.LEFT,
-            javax.swing.border.TitledBorder.TOP,
-            Colores.FUENTE_PEQUENA,
-            Colores.TEXTO_TENUE
-        ));
+        scrollErr.setBorder(BorderFactory.createEmptyBorder());
         scrollErr.getViewport().setBackground(Colores.FONDO_PANEL);
-        split.setBottomComponent(scrollErr);
+        split.setBottomComponent(Colores.conMargen(scrollErr));
 
         add(split, BorderLayout.CENTER);
     }
@@ -156,11 +142,12 @@ public class PanelSemantico extends JPanel {
         tabla.setFont(Colores.FUENTE_TABLA);
         tabla.setBackground(Colores.FONDO_TABLA_ROW1);
         tabla.setForeground(textColor);
-        tabla.setSelectionBackground(Colores.FONDO_SELECCION);
-        tabla.setSelectionForeground(Colores.TEXTO_NORMAL);
+        tabla.setSelectionBackground(Colores.SEL_FONDO);
+        tabla.setSelectionForeground(Colores.SEL_TEXTO);
         tabla.setGridColor(Colores.BORDE);
         tabla.setRowHeight(24);
         tabla.setShowVerticalLines(false);
+        tabla.setIntercellSpacing(new java.awt.Dimension(0, 1));
 
         JTableHeader th = tabla.getTableHeader();
         th.setFont(Colores.FUENTE_TITULO);
@@ -178,7 +165,7 @@ public class PanelSemantico extends JPanel {
                 if (!isSelected) {
                     c.setBackground(row % 2 == 0 ? Colores.FONDO_TABLA_ROW1 : Colores.FONDO_TABLA_ROW2);
                 }
-                c.setForeground(textColor);
+                c.setForeground(isSelected ? Colores.SEL_TEXTO : textColor);
                 setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
                 return c;
             }

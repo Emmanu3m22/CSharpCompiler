@@ -28,7 +28,7 @@ public class PanelSintactico extends JPanel {
 
     public PanelSintactico(java.util.function.BiConsumer<Integer, Integer> alSeleccionarError) {
         this.alSeleccionarError = alSeleccionarError;
-        setLayout(new BorderLayout(0, 4));
+        setLayout(new BorderLayout(0, 0));
         setBackground(Colores.FONDO_PANEL);
 
         // ── Encabezado ──
@@ -53,7 +53,7 @@ public class PanelSintactico extends JPanel {
         split.setBackground(Colores.FONDO_PANEL);
         split.setDividerLocation(200);
         split.setDividerSize(4);
-        split.setBorder(BorderFactory.createEmptyBorder());
+        Colores.estilizarSplit(split);
 
         // AST
         areaAST = new JTextArea();
@@ -63,18 +63,12 @@ public class PanelSintactico extends JPanel {
         areaAST.setCaretColor(Colores.TEXTO_NORMAL);
         areaAST.setEditable(false);
         areaAST.setMargin(new Insets(8, 8, 8, 8));
-        areaAST.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createMatteBorder(1, 0, 0, 0, Colores.BORDE),
-            "Árbol Sintáctico (AST)",
-            javax.swing.border.TitledBorder.LEFT,
-            javax.swing.border.TitledBorder.TOP,
-            Colores.FUENTE_PEQUENA,
-            Colores.TEXTO_TENUE
-        ));
+
 
         JScrollPane scrollAST = new JScrollPane(areaAST);
         scrollAST.setBorder(BorderFactory.createEmptyBorder());
-        split.setTopComponent(scrollAST);
+        scrollAST.getViewport().setBackground(Colores.FONDO_EDITOR);
+        split.setTopComponent(Colores.conMargen(scrollAST));
 
         // Panel de errores detallados
         panelErrores = new JPanel();
@@ -83,16 +77,9 @@ public class PanelSintactico extends JPanel {
         panelErrores.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         JScrollPane scrollErr = new JScrollPane(panelErrores);
-        scrollErr.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createMatteBorder(1, 0, 0, 0, Colores.BORDE),
-            "Errores Sintácticos Detectados",
-            javax.swing.border.TitledBorder.LEFT,
-            javax.swing.border.TitledBorder.TOP,
-            Colores.FUENTE_PEQUENA,
-            Colores.TEXTO_TENUE
-        ));
+        scrollErr.setBorder(BorderFactory.createEmptyBorder());
         scrollErr.getViewport().setBackground(Colores.FONDO_PANEL);
-        split.setBottomComponent(scrollErr);
+        split.setBottomComponent(Colores.conMargen(scrollErr));
 
         add(split, BorderLayout.CENTER);
     }

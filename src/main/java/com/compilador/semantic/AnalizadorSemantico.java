@@ -109,6 +109,12 @@ public class AnalizadorSemantico implements NodoVisitor<Void> {
     }
 
     @Override
+    public Void visitar(NodoMenosUnario nodo) {
+        visitarHijo(nodo.getExpresion());
+        return null;
+    }
+
+    @Override
     public Void visitar(NodoOperacion nodo) {
         visitarHijo(nodo.getIzquierdo());
         visitarHijo(nodo.getDerecho());

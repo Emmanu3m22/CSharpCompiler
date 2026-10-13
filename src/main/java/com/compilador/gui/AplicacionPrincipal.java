@@ -42,6 +42,8 @@ import com.compilador.errores.ErrorLexico;
 import com.compilador.errores.ErrorSintactico;
 import com.compilador.semantic.AnalizadorSemantico;
 import com.compilador.semantic.ErrorSemantico;
+import com.compilador.intermedio.GeneradorCodigoIntermedio;
+import com.compilador.intermedio.ProgramaIntermedio;
 
 /**
  * Ventana principal del compilador LenguajeCSharp.
@@ -57,6 +59,7 @@ public class AplicacionPrincipal extends JFrame {
     private final PanelErrores panelErrores;
     private final PanelSintactico panelSintactico;
     private final PanelSemantico panelSemantico;
+    private final PanelCodigoIntermedio panelCodigoIntermedio;
     private final PanelResumen panelResumen;
     private JTabbedPane pestanas;
 
@@ -97,6 +100,7 @@ public class AplicacionPrincipal extends JFrame {
         panelErrores = new PanelErrores((linea, columna) -> editor.irAUbicacion(linea, columna));
         panelSintactico = new PanelSintactico((linea, columna) -> editor.irAUbicacion(linea, columna));
         panelSemantico = new PanelSemantico();
+        panelCodigoIntermedio = new PanelCodigoIntermedio((linea, columna) -> editor.irAUbicacion(linea, columna));
         panelResumen = new PanelResumen();
 
         // ── Ensamblar layout ──
@@ -140,11 +144,9 @@ public class AplicacionPrincipal extends JFrame {
 
         // Menú de ejemplos
         JComboBox<String> comboEjemplos = new JComboBox<>(Ejemplos.NOMBRES);
-        comboEjemplos.setFont(Colores.FUENTE_NORMAL);
-        comboEjemplos.setBackground(Colores.FONDO_PANEL);
-        comboEjemplos.setForeground(Colores.TEXTO_NORMAL);
         comboEjemplos.setMaximumSize(new Dimension(200, 28));
         comboEjemplos.setPreferredSize(new Dimension(200, 28));
+        Colores.estilizarCombo(comboEjemplos);
         comboEjemplos.addActionListener(e -> {
             int idx = comboEjemplos.getSelectedIndex();
             if (idx >= 0) {
@@ -233,11 +235,13 @@ public class AplicacionPrincipal extends JFrame {
         pestanas.setFont(Colores.FUENTE_NORMAL);
         pestanas.setBackground(Colores.FONDO_PANEL);
         pestanas.setForeground(Colores.TEXTO_NORMAL);
+        Colores.estilizarPestanas(pestanas);
 
         pestanas.addTab("Errores", panelErrores);
         pestanas.addTab("Léxico", tablaTokens);
         pestanas.addTab("Sintáctico", panelSintactico);
         pestanas.addTab("Semántico", panelSemantico);
+        pestanas.addTab("Código Intermedio", panelCodigoIntermedio);
 
         // Split pane
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, editor, pestanas);
@@ -334,6 +338,11 @@ public class AplicacionPrincipal extends JFrame {
                 panelSemantico.cargarErrores(erroresSem);
                 panelErrores.cargarErroresSemanticos(erroresSem);
                 
+                // 5b. Código Intermedio (Polaca y Cuádruplos)
+                GeneradorCodigoIntermedio generadorIntermedio = new GeneradorCodigoIntermedio();
+                ProgramaIntermedio intermedio = generadorIntermedio.generar(ast);
+                panelCodigoIntermedio.cargar(intermedio);
+
                 // 6. Actualizar resumen
                 panelResumen.actualizar(
                         tokensList.size(),
@@ -344,6 +353,7 @@ public class AplicacionPrincipal extends JFrame {
             } else {
                 panelSintactico.mostrarAST("(No se pudo generar el AST debido a errores de sintaxis)");
                 panelSemantico.limpiar();
+                panelCodigoIntermedio.limpiar();
                 
                 // 6. Actualizar resumen
                 panelResumen.actualizar(
@@ -532,6 +542,7 @@ public class AplicacionPrincipal extends JFrame {
         panelErrores.limpiar();
         panelSintactico.limpiar();
         panelSemantico.limpiar();
+        panelCodigoIntermedio.limpiar();
         panelResumen.limpiar();
     }
 

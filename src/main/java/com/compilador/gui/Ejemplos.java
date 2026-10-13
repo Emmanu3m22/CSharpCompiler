@@ -12,6 +12,7 @@ public final class Ejemplos {
 
     /** Nombres de los ejemplos disponibles */
     public static final String[] NOMBRES = {
+        "Polaca y Cuádruplos",
         "Hola Mundo",
         "Variables y operaciones",
         "Expresiones complejas",
@@ -21,6 +22,36 @@ public final class Ejemplos {
 
     /** Código fuente de cada ejemplo (misma posición que NOMBRES) */
     public static final String[] CODIGOS = {
+        // ── Polaca y Cuádruplos (Múltiples expresiones complejas) ──
+        """
+        // Múltiples expresiones aritméticas complejas
+        int a = 5;
+        int b = 3;
+        int c = 4;
+        int d = 10;
+        double e = 2.5;
+
+        // 1. Precedencia mixta con agrupación: (5+3)*4 - 10/2 = 27
+        int r1 = (a + b) * c - d / 2;
+
+        // 2. Anidamiento profundo y módulo: 5 * (3 + 4 * (10 - 5)) % 7 = 115 % 7 = 3
+        int r2 = a * (b + c * (d - a)) % 7;
+
+        // 3. Aritmética mixta con decimales: (5 + 2.5) * (4 - 3) / 2 = 3.75
+        double r3 = (a + e) * (c - b) / 2;
+
+        // 4. División entera compuesta: ((5 - 3) * (4 + 10)) / (3 + 1) = 28 / 4 = 7
+        int r4 = ((a - b) * (c + d)) / (b + 1);
+
+        // 5. Asignación compuesta sobre resultado previo: 27 + 3 * 2 = 33
+        r1 += r2 * 2;
+
+        Console.WriteLine(r1);
+        Console.WriteLine(r2);
+        Console.WriteLine(r3);
+        Console.WriteLine(r4);
+        """,
+
         // ── Hola Mundo ──
             """
             // Programa básico: Hola Mundo
