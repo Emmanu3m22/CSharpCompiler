@@ -49,5 +49,9 @@ public class PipelineOptimizacionTest {
         assertTrue(res.codigoFinal().contains("int r1 = a + b * 2;"));
         assertTrue(res.codigoFinal().contains("Console.WriteLine(r1);"));
         assertTrue(res.codigoFinal().contains("return 0;"));
+
+        // Y que el código limpio no contiene comentarios
+        assertFalse(res.codigoFinal().contains("//"));
+        assertFalse(res.codigoFinal().contains("/*"));
     }
 }

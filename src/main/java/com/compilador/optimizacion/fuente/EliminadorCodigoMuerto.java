@@ -56,7 +56,17 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
 
         long dt = System.nanoTime() - t0;
         if (rangos.isEmpty()) {
-            return EtapaOptimizacion.sinCambios(nombre(), descripcion(), fuente.getTexto(), dt);
+            String colapsado = fuente.colapsar(List.of());
+            return new EtapaOptimizacion(
+                    nombre(),
+                    descripcion(),
+                    fuente.getTexto(),
+                    colapsado,
+                    fuente.getTexto(),
+                    List.of(),
+                    List.of(),
+                    dt
+            );
         }
 
         List<RangoTexto> normalizados = CodigoFuente.normalizarRangos(rangos);

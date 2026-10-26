@@ -73,4 +73,68 @@ public class CodigoFuenteTest {
         assertEquals("", lineas[1].trim()); // queda vacía (solo espacios)
         assertEquals("int c = 3;", lineas[2].trim());
     }
+
+    @Test
+    @DisplayName("Quitar comentarios de una línea preservando la instrucción previa")
+    void testQuitarComentariosLinea() {
+        String codigo = """
+                // Encabezado
+                int x = 10; // asigna diez
+                int y = 20;
+                """;
+        String limpio = CodigoFuente.quitarComentarios(codigo);
+        assertFalse(limpio.contains("//"));
+        assertTrue(limpio.contains("int x = 10;"));
+        assertTrue(limpio.contains("int y = 20;"));
+    }
+
+    @Test
+    @DisplayName("Quitar comentarios multilínea de bloque")
+    void testQuitarComentariosBloque() {
+        String codigo = """
+                /*
+                 * Bloque explicativo
+                 */
+                int z = /* inline */ 30;
+                """;
+        String limpio = CodigoFuente.quitarComentarios(codigo);
+        assertFalse(limpio.contains("/*"));
+        assertFalse(limpio.contains("*/"));
+        assertTrue(limpio.contains("int z = 30;"));
+    }
+
+    @Test
+    @DisplayName("Preserva secuencias de comentarios dentro de cadenas y verbatim")
+    void testPreservarComentariosEnLiterales() {
+        String codigo = """
+                string s1 = "hola // no es comentario /* tampoco */";
+                string s2 = @"verbatim // con salto
+                y comillas";
+                char c = '/';
+                """;
+        String limpio = CodigoFuente.quitarComentarios(codigo);
+        assertTrue(limpio.contains("\"hola // no es comentario /* tampoco */\""));
+        assertTrue(limpio.contains("@\"verbatim // con salto"));
+        assertTrue(limpio.contains("char c = '/';"));
+    }
+
+    @Test
+    @DisplayName("colapsar() elimina rangos y comentarios simultáneamente")
+    void testColapsarRetiraComentarios() {
+        String codigo = """
+                // Comentario de inicio
+                int a = 1;
+                int muerto = 2; // se eliminara
+                int b = 3;
+                """;
+        CodigoFuente cf = new CodigoFuente(codigo);
+        int idxMuerto = cf.buscarIndiceToken(3, 1);
+        RangoTexto rango = cf.obtenerRangoSentencia(idxMuerto);
+
+        String colapsado = cf.colapsar(List.of(rango));
+        assertFalse(colapsado.contains("//"));
+        assertFalse(colapsado.contains("int muerto = 2;"));
+        assertTrue(colapsado.contains("int a = 1;"));
+        assertTrue(colapsado.contains("int b = 3;"));
+    }
 }

@@ -330,32 +330,199 @@ public class CodigoFuente {
     }
 
     /**
-     * Colapsa (elimina físicamente) los rangos del texto original para generar
-     * la versión final limpia y legible.
+     * Colapsa (elimina físicamente) los rangos del texto original y retira comentarios
+     * para generar la versión final limpia y legible del código optimizado.
      */
     public String colapsar(List<RangoTexto> rangos) {
-        if (rangos == null || rangos.isEmpty() || texto.isEmpty()) {
-            return texto;
-        }
-        List<RangoTexto> ordenados = normalizarRangos(rangos);
         StringBuilder sb = new StringBuilder();
-        int cursor = 0;
-        for (RangoTexto r : ordenados) {
-            int ini = Math.max(0, Math.min(r.inicio(), texto.length()));
-            int fin = Math.max(ini, Math.min(r.fin(), texto.length()));
-            if (ini > cursor) {
-                sb.append(texto, cursor, ini);
+        if (rangos == null || rangos.isEmpty() || texto.isEmpty()) {
+            sb.append(texto);
+        } else {
+            List<RangoTexto> ordenados = normalizarRangos(rangos);
+            int cursor = 0;
+            for (RangoTexto r : ordenados) {
+                int ini = Math.max(0, Math.min(r.inicio(), texto.length()));
+                int fin = Math.max(ini, Math.min(r.fin(), texto.length()));
+                if (ini > cursor) {
+                    sb.append(texto, cursor, ini);
+                }
+                cursor = Math.max(cursor, fin);
             }
-            cursor = Math.max(cursor, fin);
+            if (cursor < texto.length()) {
+                sb.append(texto, cursor, texto.length());
+            }
         }
-        if (cursor < texto.length()) {
-            sb.append(texto, cursor, texto.length());
-        }
-        return limpiarLineasVaciasExcessivas(sb.toString());
+        String sinComentarios = quitarComentarios(sb.toString());
+        return limpiarLineasVaciasExcessivas(sinComentarios);
     }
 
-    private static String limpiarLineasVaciasExcessivas(String s) {
-        return s.replaceAll("([ \t]*\r?\n){3,}", "\n\n").trim() + "\n";
+    /**
+     * Elimina comentarios de una línea (//...) y de múltiples líneas (/*...* /),
+     * preservando de forma segura aquellos que se encuentren dentro de literales
+     * de cadena ("..."), cadenas verbatim (@"...") o caracteres ('...').
+     */
+    public static String quitarComentarios(String s) {
+        if (s == null || s.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder(s.length());
+        int n = s.length();
+        int i = 0;
+
+        while (i < n) {
+            char c = s.charAt(i);
+
+            // Cadena verbatim en C#: @"..."
+            if (c == '@' && i + 1 < n && s.charAt(i + 1) == '"') {
+                sb.append(c).append('"');
+                i += 2;
+                while (i < n) {
+                    char ch = s.charAt(i);
+                    sb.append(ch);
+                    if (ch == '"') {
+                        if (i + 1 < n && s.charAt(i + 1) == '"') {
+                            i++;
+                            sb.append(s.charAt(i));
+                        } else {
+                            i++;
+                            break;
+                        }
+                    }
+                    i++;
+                }
+                continue;
+            }
+
+            // Cadena normal: "..."
+            if (c == '"') {
+                sb.append(c);
+                i++;
+                while (i < n) {
+                    char ch = s.charAt(i);
+                    sb.append(ch);
+                    if (ch == '\\' && i + 1 < n) {
+                        i++;
+                        sb.append(s.charAt(i));
+                    } else if (ch == '"') {
+                        i++;
+                        break;
+                    }
+                    i++;
+                }
+                continue;
+            }
+
+            // Carácter literal: '...'
+            if (c == '\'') {
+                sb.append(c);
+                i++;
+                while (i < n) {
+                    char ch = s.charAt(i);
+                    sb.append(ch);
+                    if (ch == '\\' && i + 1 < n) {
+                        i++;
+                        sb.append(s.charAt(i));
+                    } else if (ch == '\'') {
+                        i++;
+                        break;
+                    }
+                    i++;
+                }
+                continue;
+            }
+
+            // Comentario de una línea: //...
+            if (c == '/' && i + 1 < n && s.charAt(i + 1) == '/') {
+                int posEspacios = sb.length();
+                while (posEspacios > 0) {
+                    char ult = sb.charAt(posEspacios - 1);
+                    if (ult == ' ' || ult == '\t') {
+                        posEspacios--;
+                    } else {
+                        break;
+                    }
+                }
+                boolean soloEspaciosPrevios = (posEspacios == 0)
+                        || (sb.charAt(posEspacios - 1) == '\n' || sb.charAt(posEspacios - 1) == '\r');
+
+                sb.setLength(posEspacios);
+
+                i += 2;
+                while (i < n && s.charAt(i) != '\r' && s.charAt(i) != '\n') {
+                    i++;
+                }
+
+                if (soloEspaciosPrevios) {
+                    if (i < n && s.charAt(i) == '\r') i++;
+                    if (i < n && s.charAt(i) == '\n') i++;
+                }
+                continue;
+            }
+
+            // Comentario multilínea: /*...*/
+            if (c == '/' && i + 1 < n && s.charAt(i + 1) == '*') {
+                int posEspacios = sb.length();
+                while (posEspacios > 0) {
+                    char ult = sb.charAt(posEspacios - 1);
+                    if (ult == ' ' || ult == '\t') {
+                        posEspacios--;
+                    } else {
+                        break;
+                    }
+                }
+                boolean soloEspaciosPrevios = (posEspacios == 0)
+                        || (sb.charAt(posEspacios - 1) == '\n' || sb.charAt(posEspacios - 1) == '\r');
+
+                i += 2;
+                while (i < n) {
+                    if (s.charAt(i) == '*' && i + 1 < n && s.charAt(i + 1) == '/') {
+                        i += 2;
+                        break;
+                    }
+                    i++;
+                }
+
+                if (soloEspaciosPrevios) {
+                    int j = i;
+                    while (j < n && (s.charAt(j) == ' ' || s.charAt(j) == '\t')) {
+                        j++;
+                    }
+                    if (j == n || s.charAt(j) == '\r' || s.charAt(j) == '\n') {
+                        sb.setLength(posEspacios);
+                        if (j < n && s.charAt(j) == '\r') j++;
+                        if (j < n && s.charAt(j) == '\n') j++;
+                        i = j;
+                        continue;
+                    }
+                }
+
+                // Comentario inline: evitar dobles espacios o fusión de identificadores
+                boolean antesTerminaEnEspacio = sb.length() > 0 && Character.isWhitespace(sb.charAt(sb.length() - 1));
+                if (antesTerminaEnEspacio) {
+                    while (i < n && (s.charAt(i) == ' ' || s.charAt(i) == '\t')) {
+                        i++;
+                    }
+                } else if (i < n && Character.isJavaIdentifierPart(s.charAt(i))
+                        && sb.length() > 0 && Character.isJavaIdentifierPart(sb.charAt(sb.length() - 1))) {
+                    sb.append(' ');
+                }
+                continue;
+            }
+
+            sb.append(c);
+            i++;
+        }
+
+        return sb.toString();
+    }
+
+    public static String limpiarLineasVaciasExcessivas(String s) {
+        if (s == null || s.trim().isEmpty()) {
+            return "";
+        }
+        String limpio = s.replaceAll("[ \t]+(\r?\n)", "$1");
+        limpio = limpio.replaceAll("(\r?\n[ \t]*){3,}", "\n\n");
+        return limpio.trim() + "\n";
     }
 
     public static List<RangoTexto> normalizarRangos(List<RangoTexto> rangos) {

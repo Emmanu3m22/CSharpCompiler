@@ -1,6 +1,5 @@
 package com.compilador.gui;
 
-import com.compilador.optimizacion.fuente.EtapaOptimizacion;
 import com.compilador.optimizacion.fuente.Hallazgo;
 import com.compilador.optimizacion.fuente.ResultadoOptimizacionFuente;
 
@@ -8,9 +7,6 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.DefaultHighlighter;
-import javax.swing.text.Highlighter;
 import java.awt.*;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -18,9 +14,9 @@ import java.util.function.BiConsumer;
 /**
  * Panel para visualizar el proceso de optimización:
  * <ul>
- *   <li>Comparación lado a lado de Código Original (Antes) vs Código Optimizado (Después).</li>
+ *   <li>Visualización del Código Optimizado (limpio, sin código muerto ni comentarios).</li>
  *   <li>Bitácora de eliminaciones con número de línea, regla aplicada, código eliminado y motivo pedagógico.</li>
- *   <li>Navegación interactiva al editor al hacer clic en cualquier hallazgo.</li>
+ *   <li>Navegación interactiva al editor principal al hacer clic en cualquier hallazgo.</li>
  * </ul>
  */
 public class PanelOptimizacion extends JPanel {
@@ -30,15 +26,12 @@ public class PanelOptimizacion extends JPanel {
     };
 
     private final JLabel labelEstado;
-    private final JTextArea areaAntes;
     private final JTextArea areaDespues;
     private final JTable tablaHallazgos;
     private final DefaultTableModel modeloHallazgos;
     private final BiConsumer<Integer, Integer> alSeleccionarUbicacion;
 
     private ResultadoOptimizacionFuente ultimoResultado;
-    private final Highlighter.HighlightPainter pintorResaltado =
-            new DefaultHighlighter.DefaultHighlightPainter(new Color(130, 45, 60));
 
     public PanelOptimizacion() {
         this((l, c) -> {});
@@ -67,27 +60,17 @@ public class PanelOptimizacion extends JPanel {
 
         add(header, BorderLayout.NORTH);
 
-        // ── Split Vertical Principal: Arriba (Antes/Después) | Abajo (Bitácora de Hallazgos) ──
+        // ── Split Vertical Principal: Arriba (Código Optimizado) | Abajo (Bitácora de Hallazgos) ──
         JSplitPane splitPrincipal = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        splitPrincipal.setDividerLocation(300);
+        splitPrincipal.setDividerLocation(320);
         splitPrincipal.setDividerSize(5);
         Colores.estilizarSplit(splitPrincipal);
 
-        // ── Panel Superior: Comparativa ANTES vs DESPUÉS ──
-        JPanel panelComparativa = new JPanel(new GridLayout(1, 2, 8, 0));
-        panelComparativa.setBackground(Colores.FONDO_PANEL);
-
-        // Lado izquierdo: ANTES
-        areaAntes = crearAreaTexto();
-        JPanel contenedorAntes = crearContenedorCodigo("CÓDIGO ORIGINAL (ANTES)", Colores.ERROR, areaAntes);
-        panelComparativa.add(contenedorAntes);
-
-        // Lado derecho: DESPUÉS
+        // ── Panel Superior: Código Optimizado Único (Limpio) ──
         areaDespues = crearAreaTexto();
-        JPanel contenedorDespues = crearContenedorCodigo("CÓDIGO OPTIMIZADO (DESPUÉS)", Colores.ACENTO_OPTIMIZACION, areaDespues);
-        panelComparativa.add(contenedorDespues);
+        JPanel contenedorDespues = crearContenedorCodigo("CÓDIGO OPTIMIZADO (LIMPIO)", Colores.ACENTO_OPTIMIZACION, areaDespues);
 
-        splitPrincipal.setTopComponent(Colores.conMargen(panelComparativa));
+        splitPrincipal.setTopComponent(Colores.conMargen(contenedorDespues));
 
         // ── Panel Inferior: Tabla de Hallazgos y Motivos ──
         modeloHallazgos = new DefaultTableModel(COL_HALLAZGOS, 0) {
@@ -145,12 +128,10 @@ public class PanelOptimizacion extends JPanel {
         if (resultado.omitida()) {
             labelEstado.setText("⚠ " + (resultado.motivoOmision() != null ? resultado.motivoOmision() : "Optimización omitida"));
             labelEstado.setForeground(Colores.ADVERTENCIA);
-            areaAntes.setText(resultado.codigoOriginal());
-            areaDespues.setText("(Optimización omitida debido a errores en fases previas)");
+            areaDespues.setText("// Optimización omitida debido a errores en fases previas.");
             return;
         }
 
-        areaAntes.setText(resultado.codigoOriginal());
         areaDespues.setText(resultado.codigoFinal());
 
         List<Hallazgo> hallazgos = resultado.todosLosHallazgos();
@@ -182,7 +163,6 @@ public class PanelOptimizacion extends JPanel {
      */
     public void mostrarOmitida(String motivo, String codigoOriginal) {
         limpiar();
-        areaAntes.setText(codigoOriginal != null ? codigoOriginal : "");
         areaDespues.setText("// La optimización fue omitida porque el código contiene errores.\n// Corrige los errores en las pestañas anteriores para habilitar la optimización.");
         labelEstado.setText("⚠ " + motivo);
         labelEstado.setForeground(Colores.ADVERTENCIA);
@@ -198,9 +178,7 @@ public class PanelOptimizacion extends JPanel {
     }
 
     private void limpiarVistas() {
-        areaAntes.setText("");
         areaDespues.setText("");
-        areaAntes.getHighlighter().removeAllHighlights();
         modeloHallazgos.setRowCount(0);
     }
 
@@ -212,23 +190,8 @@ public class PanelOptimizacion extends JPanel {
         if (fila >= hallazgos.size()) return;
 
         Hallazgo h = hallazgos.get(fila);
-        areaAntes.getHighlighter().removeAllHighlights();
 
-        // Resaltar en el área "Antes"
-        String txt = areaAntes.getText();
-        String frag = h.codigoEliminado();
-        if (frag != null && !frag.isEmpty()) {
-            int idx = txt.indexOf(frag);
-            if (idx >= 0) {
-                try {
-                    areaAntes.getHighlighter().addHighlight(idx, idx + frag.length(), pintorResaltado);
-                    areaAntes.setCaretPosition(idx);
-                } catch (BadLocationException ignored) {
-                }
-            }
-        }
-
-        // Navegar en el editor principal
+        // Navegar en el editor principal (panel izquierdo) donde reside el código original
         if (h.linea() > 0) {
             alSeleccionarUbicacion.accept(h.linea(), 1);
         }
