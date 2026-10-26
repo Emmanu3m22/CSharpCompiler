@@ -23,7 +23,6 @@ public class EliminadorCodigoMuertoTest {
         assertTrue(res.hayCambios());
         assertEquals(2, res.totalEliminaciones());
 
-        // Ambos hallazgos son INALCANZABLE
         Hallazgo h1 = res.hallazgos().get(0);
         assertEquals(Hallazgo.Tipo.INALCANZABLE, h1.tipo());
         assertTrue(h1.motivo().contains("return"));
@@ -34,7 +33,6 @@ public class EliminadorCodigoMuertoTest {
         assertTrue(h2.motivo().contains("return"));
         assertTrue(h2.codigoEliminado().contains("Console.WriteLine(muerto);"));
 
-        // El código después conserva return a; y descarta lo posterior
         assertTrue(res.codigoDespues().contains("int a = 5;"));
         assertTrue(res.codigoDespues().contains("return a;"));
         assertFalse(res.codigoDespues().contains("int muerto = 10;"));
@@ -55,8 +53,84 @@ public class EliminadorCodigoMuertoTest {
         EliminadorCodigoMuerto eliminador = new EliminadorCodigoMuerto();
         EtapaOptimizacion res = eliminador.aplicar(new CodigoFuente(codigo));
 
-        // 'int vivo = 2;' está fuera del if, por lo que NO es inalcanzable tras el return del bloque then
         assertFalse(res.codigoDespues().contains("muerto"));
         assertTrue(res.codigoDespues().contains("int vivo = 2;"));
+    }
+
+    @Test
+    @DisplayName("R2: Elimina if (false) y while (false) por condición constante")
+    void testR2CondicionConstanteFalsa() {
+        String codigo = """
+                int a = 1;
+                if (false) {
+                    int b = 2;
+                    Console.WriteLine(b);
+                }
+                while (false) {
+                    int c = 3;
+                }
+                Console.WriteLine(a);
+                """;
+
+        EliminadorCodigoMuerto eliminador = new EliminadorCodigoMuerto();
+        EtapaOptimizacion res = eliminador.aplicar(new CodigoFuente(codigo));
+
+        assertTrue(res.hayCambios());
+        assertEquals(2, res.totalEliminaciones());
+
+        for (Hallazgo h : res.hallazgos()) {
+            assertEquals(Hallazgo.Tipo.CONDICION_CONSTANTE, h.tipo());
+            assertTrue(h.motivo().contains("false"));
+        }
+
+        assertFalse(res.codigoDespues().contains("if (false)"));
+        assertFalse(res.codigoDespues().contains("while (false)"));
+        assertTrue(res.codigoDespues().contains("int a = 1;"));
+        assertTrue(res.codigoDespues().contains("Console.WriteLine(a);"));
+    }
+
+    @Test
+    @DisplayName("R3: if (true) elimina la rama else inalcanzable")
+    void testR3IfTrueEliminaElse() {
+        String codigo = """
+                int x = 10;
+                if (true) {
+                    Console.WriteLine(x);
+                } else {
+                    int muerto = 99;
+                }
+                """;
+
+        EliminadorCodigoMuerto eliminador = new EliminadorCodigoMuerto();
+        EtapaOptimizacion res = eliminador.aplicar(new CodigoFuente(codigo));
+
+        assertTrue(res.hayCambios());
+        assertEquals(1, res.totalEliminaciones());
+
+        Hallazgo h = res.hallazgos().get(0);
+        assertEquals(Hallazgo.Tipo.CONDICION_CONSTANTE, h.tipo());
+        assertTrue(h.motivo().contains("else"));
+
+        assertTrue(res.codigoDespues().contains("if (true)"));
+        assertTrue(res.codigoDespues().contains("Console.WriteLine(x);"));
+        assertFalse(res.codigoDespues().contains("else"));
+        assertFalse(res.codigoDespues().contains("int muerto = 99;"));
+    }
+
+    @Test
+    @DisplayName("Condiciones variables o no constantes se conservan intactas")
+    void testCondicionNoConstanteSeConserva() {
+        String codigo = """
+                int a = 5;
+                if (a > 0) {
+                    Console.WriteLine(a);
+                }
+                """;
+
+        EliminadorCodigoMuerto eliminador = new EliminadorCodigoMuerto();
+        EtapaOptimizacion res = eliminador.aplicar(new CodigoFuente(codigo));
+
+        assertFalse(res.hayCambios());
+        assertEquals(codigo, res.codigoDespues());
     }
 }
