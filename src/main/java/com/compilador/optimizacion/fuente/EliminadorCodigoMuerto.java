@@ -7,9 +7,7 @@ import com.compilador.ast.*;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * Pase de optimización para la eliminación de código muerto.
@@ -51,6 +49,9 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
 
             // Aplicar R2/R3: Condiciones constantes (if false, while false, else inalcanzable)
             aplicarR2R3CondicionConstante(ast, fuente, hallazgos, rangos);
+
+            // Aplicar R4: Variables sin uso con punto fijo
+            aplicarR4VariablesSinUsoPuntoFijo(ast, fuente, hallazgos, rangos);
         }
 
         long dt = System.nanoTime() - t0;
@@ -113,7 +114,7 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
                         int idxToken = fuente.buscarIndiceToken(s.getLinea(), s.getColumna());
                         if (idxToken >= 0) {
                             RangoTexto rango = fuente.obtenerRangoSentencia(idxToken);
-                            if (rango != null) {
+                            if (rango != null && !estaEnRangos(rango.inicio(), rangos)) {
                                 rangos.add(rango);
                                 String texto = fuente.getTexto().substring(rango.inicio(), rango.fin()).trim();
                                 hallazgos.add(new Hallazgo(
@@ -167,9 +168,7 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
             @Override
             public Void visitar(NodoSwitch nodo) {
                 if (nodo.getCasos() != null) {
-                    for (NodoCaso c : nodo.getCasos()) {
-                        if (c != null) c.accept(this);
-                    }
+                    for (NodoCaso c : nodo.getCasos()) if (c != null) c.accept(this);
                 }
                 return null;
             }
@@ -205,9 +204,6 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
 
     /**
      * R2 y R3: Detecta condiciones booleanas constantes en estructuras de control.
-     * - if (false) sin else -> se elimina completo
-     * - while (false) -> se elimina completo
-     * - if (true) { A } else { B } -> se elimina la rama else { B }
      */
     void aplicarR2R3CondicionConstante(NodoPrograma ast, CodigoFuente fuente,
                                        List<Hallazgo> hallazgos, List<RangoTexto> rangos) {
@@ -217,11 +213,10 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
                 Boolean valorConstante = evaluarBooleanoConstante(nodo.getCondicion());
                 if (Boolean.FALSE.equals(valorConstante)) {
                     if (nodo.getBloqueElse() == null) {
-                        // if (false) { ... } sin else: se elimina completo
                         int idx = fuente.buscarIndiceToken(nodo.getLinea(), nodo.getColumna());
                         if (idx >= 0) {
                             RangoTexto r = fuente.obtenerRangoSentencia(idx);
-                            if (r != null) {
+                            if (r != null && !estaEnRangos(r.inicio(), rangos)) {
                                 rangos.add(r);
                                 String txt = fuente.getTexto().substring(r.inicio(), r.fin()).trim();
                                 hallazgos.add(new Hallazgo(
@@ -236,7 +231,6 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
                     }
                 } else if (Boolean.TRUE.equals(valorConstante)) {
                     if (nodo.getBloqueElse() != null) {
-                        // if (true) { A } else { B }: la rama else es inalcanzable
                         Nodo blqElse = nodo.getBloqueElse();
                         int idxElse = buscarTokenElse(fuente, nodo.getLinea(), blqElse.getLinea());
                         if (idxElse >= 0) {
@@ -244,14 +238,16 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
                             int ini = fuente.inicioDe(fuente.getTokens().get(idxElse));
                             int fin = fuente.finDe(fuente.getTokens().get(idxFin));
                             RangoTexto r = new RangoTexto(ini, fin);
-                            rangos.add(r);
-                            String txt = fuente.getTexto().substring(ini, fin).trim();
-                            hallazgos.add(new Hallazgo(
-                                    blqElse.getLinea(),
-                                    Hallazgo.Tipo.CONDICION_CONSTANTE,
-                                    txt,
-                                    "Condición constante 'true': la rama 'else' es inalcanzable y se elimina."
-                            ));
+                            if (!estaEnRangos(r.inicio(), rangos)) {
+                                rangos.add(r);
+                                String txt = fuente.getTexto().substring(ini, fin).trim();
+                                hallazgos.add(new Hallazgo(
+                                        blqElse.getLinea(),
+                                        Hallazgo.Tipo.CONDICION_CONSTANTE,
+                                        txt,
+                                        "Condición constante 'true': la rama 'else' es inalcanzable y se elimina."
+                                ));
+                            }
                         }
                     }
                 }
@@ -268,7 +264,7 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
                     int idx = fuente.buscarIndiceToken(nodo.getLinea(), nodo.getColumna());
                     if (idx >= 0) {
                         RangoTexto r = fuente.obtenerRangoSentencia(idx);
-                        if (r != null) {
+                        if (r != null && !estaEnRangos(r.inicio(), rangos)) {
                             rangos.add(r);
                             String txt = fuente.getTexto().substring(r.inicio(), r.fin()).trim();
                             hallazgos.add(new Hallazgo(
@@ -356,6 +352,180 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
             @Override public Void visitar(NodoIncremento nodo) { return null; }
             @Override public Void visitar(NodoMenosUnario nodo) { return null; }
         });
+    }
+
+    /**
+     * R4: Elimina variables declaradas o asignadas que nunca se leen en el programa.
+     * Utiliza un ciclo de punto fijo (si 'b' dependía de 'a' y 'b' se elimina, 'a' pasa a ser candidata).
+     */
+    void aplicarR4VariablesSinUsoPuntoFijo(NodoPrograma ast, CodigoFuente fuente,
+                                          List<Hallazgo> hallazgos, List<RangoTexto> rangos) {
+        // Recolectar todas las sentencias candidatas a asignación/declaración local
+        List<CandidatoVariable> candidatos = recolectarCandidatosVariables(ast);
+
+        boolean huboCambios = true;
+        Set<Integer> eliminadosIdx = new HashSet<>();
+
+        while (huboCambios) {
+            huboCambios = false;
+
+            // 1. Calcular qué variables son leídas fuera de los rangos actualmente marcados como eliminados
+            Set<String> variablesLeidas = AnalizadorUso.obtenerVariablesLeidas(fuente, rangos);
+
+            // 2. Evaluar cada candidato que aún no ha sido eliminado
+            for (int i = 0; i < candidatos.size(); i++) {
+                if (eliminadosIdx.contains(i)) continue;
+
+                CandidatoVariable cand = candidatos.get(i);
+                if (!variablesLeidas.contains(cand.nombreVariable)) {
+                    // La variable no es leída en ningún sitio vivo del programa.
+                    // Comprobar que no contenga efectos secundarios
+                    int idxToken = fuente.buscarIndiceToken(cand.linea, cand.columna);
+                    if (idxToken >= 0) {
+                        int idxFin = fuente.delimitarSentencia(idxToken);
+                        if (!AnalizadorUso.tieneEfectosSecundarios(fuente, idxToken, idxFin)) {
+                            RangoTexto rango = fuente.obtenerRangoSentencia(idxToken);
+                            if (rango != null && !estaEnRangos(rango.inicio(), rangos)) {
+                                rangos.add(rango);
+                                eliminadosIdx.add(i);
+                                huboCambios = true;
+
+                                String texto = fuente.getTexto().substring(rango.inicio(), rango.fin()).trim();
+                                hallazgos.add(new Hallazgo(
+                                        cand.linea,
+                                        Hallazgo.Tipo.VARIABLE_SIN_USO,
+                                        texto,
+                                        String.format("La variable '%s' se %s pero nunca se lee en el programa.",
+                                                cand.nombreVariable, cand.esDeclaracion ? "declara" : "asigna")
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static class CandidatoVariable {
+        final String nombreVariable;
+        final int linea;
+        final int columna;
+        final boolean esDeclaracion;
+
+        CandidatoVariable(String nombreVariable, int linea, int columna, boolean esDeclaracion) {
+            this.nombreVariable = nombreVariable;
+            this.linea = linea;
+            this.columna = columna;
+            this.esDeclaracion = esDeclaracion;
+        }
+    }
+
+    private static List<CandidatoVariable> recolectarCandidatosVariables(NodoPrograma ast) {
+        List<CandidatoVariable> lista = new ArrayList<>();
+        ast.accept(new NodoVisitor<Void>() {
+            @Override
+            public Void visitar(NodoPrograma nodo) {
+                visitarSentencias(nodo.getSentencias());
+                return null;
+            }
+
+            @Override
+            public Void visitar(NodoBloque nodo) {
+                visitarSentencias(nodo.getSentencias());
+                return null;
+            }
+
+            @Override
+            public Void visitar(NodoCaso nodo) {
+                visitarSentencias(nodo.getSentencias());
+                return null;
+            }
+
+            private void visitarSentencias(List<Nodo> sentencias) {
+                if (sentencias == null) return;
+                for (Nodo s : sentencias) {
+                    if (s == null) continue;
+                    if (s instanceof NodoDeclaracion decl && decl.getIdentificador() != null) {
+                        lista.add(new CandidatoVariable(decl.getIdentificador(), decl.getLinea(), decl.getColumna(), true));
+                    } else if (s instanceof NodoAsignacion asig && asig.getIdentificador() != null) {
+                        lista.add(new CandidatoVariable(asig.getIdentificador(), asig.getLinea(), asig.getColumna(), false));
+                    } else {
+                        s.accept(this);
+                    }
+                }
+            }
+
+            @Override
+            public Void visitar(NodoIf nodo) {
+                if (nodo.getBloqueThen() != null) nodo.getBloqueThen().accept(this);
+                if (nodo.getBloqueElse() != null) nodo.getBloqueElse().accept(this);
+                return null;
+            }
+
+            @Override
+            public Void visitar(NodoWhile nodo) {
+                if (nodo.getCuerpo() != null) nodo.getCuerpo().accept(this);
+                return null;
+            }
+
+            @Override
+            public Void visitar(NodoDoWhile nodo) {
+                if (nodo.getCuerpo() != null) nodo.getCuerpo().accept(this);
+                return null;
+            }
+
+            @Override
+            public Void visitar(NodoFor nodo) {
+                if (nodo.getCuerpo() != null) nodo.getCuerpo().accept(this);
+                return null;
+            }
+
+            @Override
+            public Void visitar(NodoSwitch nodo) {
+                if (nodo.getCasos() != null) for (NodoCaso c : nodo.getCasos()) if (c != null) c.accept(this);
+                return null;
+            }
+
+            // Excluir miembros directos de clases / estructuras
+            @Override
+            public Void visitar(NodoEstructura nodo) {
+                // Solo inspeccionamos si es un método o constructor, no los campos globales de una clase
+                if ("method".equals(nodo.getTipoEstructura()) || "constructor".equals(nodo.getTipoEstructura())) {
+                    if (nodo.getCuerpo() != null) nodo.getCuerpo().accept(this);
+                }
+                return null;
+            }
+
+            @Override public Void visitar(NodoAsignacion nodo) { return null; }
+            @Override public Void visitar(NodoAccesoArreglo nodo) { return null; }
+            @Override public Void visitar(NodoCasteo nodo) { return null; }
+            @Override public Void visitar(NodoDeclaracion nodo) { return null; }
+            @Override public Void visitar(NodoComando nodo) { return null; }
+            @Override public Void visitar(NodoCadena nodo) { return null; }
+            @Override public Void visitar(NodoArreglo nodo) { return null; }
+            @Override public Void visitar(NodoBooleano nodo) { return null; }
+            @Override public Void visitar(NodoNumero nodo) { return null; }
+            @Override public Void visitar(NodoIdentificador nodo) { return null; }
+            @Override public Void visitar(NodoInstanciacion nodo) { return null; }
+            @Override public Void visitar(NodoTernario nodo) { return null; }
+            @Override public Void visitar(NodoAgrupacion nodo) { return null; }
+            @Override public Void visitar(NodoNegacionLogica nodo) { return null; }
+            @Override public Void visitar(NodoLlamadaMetodo nodo) { return null; }
+            @Override public Void visitar(NodoOperacionLogica nodo) { return null; }
+            @Override public Void visitar(NodoOperacion nodo) { return null; }
+            @Override public Void visitar(NodoOperacionRelacional nodo) { return null; }
+            @Override public Void visitar(NodoIncremento nodo) { return null; }
+            @Override public Void visitar(NodoMenosUnario nodo) { return null; }
+        });
+        return lista;
+    }
+
+    private static boolean estaEnRangos(int pos, List<RangoTexto> rangos) {
+        if (rangos == null) return false;
+        for (RangoTexto r : rangos) {
+            if (r.contiene(pos)) return true;
+        }
+        return false;
     }
 
     private static Boolean evaluarBooleanoConstante(Nodo cond) {

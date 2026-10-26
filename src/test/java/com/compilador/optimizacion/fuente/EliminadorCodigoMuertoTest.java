@@ -118,19 +118,63 @@ public class EliminadorCodigoMuertoTest {
     }
 
     @Test
-    @DisplayName("Condiciones variables o no constantes se conservan intactas")
-    void testCondicionNoConstanteSeConserva() {
+    @DisplayName("R4: Elimina variables sin uso sin efectos secundarios")
+    void testR4VariableSinUso() {
         String codigo = """
                 int a = 5;
-                if (a > 0) {
-                    Console.WriteLine(a);
-                }
+                int basura = 50 * 2 + 10;
+                Console.WriteLine(a);
                 """;
 
         EliminadorCodigoMuerto eliminador = new EliminadorCodigoMuerto();
         EtapaOptimizacion res = eliminador.aplicar(new CodigoFuente(codigo));
 
+        assertTrue(res.hayCambios());
+        assertEquals(1, res.totalEliminaciones());
+
+        Hallazgo h = res.hallazgos().get(0);
+        assertEquals(Hallazgo.Tipo.VARIABLE_SIN_USO, h.tipo());
+        assertTrue(h.codigoEliminado().contains("basura"));
+        assertTrue(h.motivo().contains("basura"));
+
+        assertTrue(res.codigoDespues().contains("int a = 5;"));
+        assertTrue(res.codigoDespues().contains("Console.WriteLine(a);"));
+        assertFalse(res.codigoDespues().contains("basura"));
+    }
+
+    @Test
+    @DisplayName("R4: Punto fijo elimina cadena de variables transitivamente no usadas")
+    void testR4PuntoFijoCadenaVariables() {
+        String codigo = """
+                int a = 10;
+                int b = a + 5;
+                int c = 999;
+                Console.WriteLine(c);
+                """;
+
+        EliminadorCodigoMuerto eliminador = new EliminadorCodigoMuerto();
+        EtapaOptimizacion res = eliminador.aplicar(new CodigoFuente(codigo));
+
+        assertTrue(res.hayCambios());
+        // Tanto 'b' como 'a' deben ser eliminadas porque ninguna salida las consume
+        assertFalse(res.codigoDespues().contains("int a = 10;"));
+        assertFalse(res.codigoDespues().contains("int b = a + 5;"));
+        assertTrue(res.codigoDespues().contains("int c = 999;"));
+        assertTrue(res.codigoDespues().contains("Console.WriteLine(c);"));
+    }
+
+    @Test
+    @DisplayName("R4: No elimina asignaciones con efectos secundarios (llamadas)")
+    void testR4NoEliminaEfectosSecundarios() {
+        String codigo = """
+                int x = miMetodo();
+                """;
+
+        EliminadorCodigoMuerto eliminador = new EliminadorCodigoMuerto();
+        EtapaOptimizacion res = eliminador.aplicar(new CodigoFuente(codigo));
+
+        // Debe conservarse porque miMetodo() tiene efectos secundarios potenciales
         assertFalse(res.hayCambios());
-        assertEquals(codigo, res.codigoDespues());
+        assertTrue(res.codigoDespues().contains("miMetodo()"));
     }
 }
