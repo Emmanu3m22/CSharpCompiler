@@ -134,6 +134,11 @@ public class CodigoFuente {
             return saltarPares(idxInicio, AnalizadorConstants.LLAVE_IZQ, AnalizadorConstants.LLAVE_DER);
         }
 
+        // else sent
+        if (t.kind == AnalizadorConstants.ELSE) {
+            return delimitarSentencia(idxInicio + 1);
+        }
+
         // if (cond) sent [else sent]
         if (t.kind == AnalizadorConstants.IF) {
             int idx = idxInicio + 1;
