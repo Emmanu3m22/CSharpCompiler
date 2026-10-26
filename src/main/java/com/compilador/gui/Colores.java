@@ -35,6 +35,7 @@ public final class Colores {
     public static final Color ACENTO_SINTACTICO  = new Color(180, 240, 200); // Verde pastel
     public static final Color ACENTO_SEMANTICO   = new Color(230, 190, 255); // Morado pastel
     public static final Color ACENTO_INTERMEDIO  = new Color(255, 215, 140); // Ámbar pastel intermedio
+    public static final Color ACENTO_OPTIMIZACION = new Color(130, 220, 180); // Verde menta pastel optimización
     public static final Color ACENTO_PRINCIPAL   = new Color(150, 200, 255); // Azul pastel principal
 
     // ── Estados (Pastel elegante) ──

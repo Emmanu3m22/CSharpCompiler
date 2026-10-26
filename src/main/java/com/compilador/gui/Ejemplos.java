@@ -17,7 +17,8 @@ public final class Ejemplos {
         "Variables y operaciones",
         "Expresiones complejas",
         "Errores de ejemplo",
-        "Programa vacío"
+        "Programa vacío",
+        "Eliminación de Código Muerto"
     };
 
     /** Código fuente de cada ejemplo (misma posición que NOMBRES) */
@@ -95,7 +96,44 @@ public final class Ejemplos {
         "Console.WriteLine(x);\n",
 
         // ── Programa vacío ──
-        "// Programa sin sentencias\n"
+        "// Programa sin sentencias\n",
+
+        // ── Eliminación de Código Muerto ──
+        """
+        // Ejemplo de Eliminación de Código Muerto (Reglas R1, R2, R3, R4)
+        int a = 10;
+        int b = 20;
+
+        // Variables vivas: se calculan y se imprimen
+        int r1 = a + b * 2;
+
+        // R4: Variables sin uso posterior ni efectos secundarios
+        int basura1 = 50 * 2 + 10;
+        int tempInutil = a * 100;
+
+        // R2: Condición constante falsa (el cuerpo nunca se ejecutará)
+        if (false) {
+            int muerto1 = 999;
+            Console.WriteLine(muerto1);
+        }
+
+        while (false) {
+            int muerto2 = 888;
+        }
+
+        // R3: Condición constante verdadera con else inalcanzable
+        if (true) {
+            Console.WriteLine(r1);
+        } else {
+            int muertoElse = 777;
+        }
+
+        // R1: Código inalcanzable tras terminador return
+        return 0;
+
+        int codigoInalcanzable = 500;
+        Console.WriteLine(codigoInalcanzable);
+        """
     };
 
     /**
