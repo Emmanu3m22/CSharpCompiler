@@ -433,6 +433,9 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
     private static List<CandidatoVariable> recolectarCandidatosVariables(NodoPrograma ast) {
         List<CandidatoVariable> lista = new ArrayList<>();
         ast.accept(new NodoVisitor<Void>() {
+            private int profundidadClase = 0;
+            private int profundidadMetodo = 0;
+
             @Override
             public Void visitar(NodoPrograma nodo) {
                 visitarSentencias(nodo.getSentencias());
@@ -453,8 +456,12 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
 
             private void visitarSentencias(List<Nodo> sentencias) {
                 if (sentencias == null) return;
+                boolean esMiembroDeClase = profundidadClase > 0 && profundidadMetodo == 0;
                 for (Nodo s : sentencias) {
                     if (s == null) continue;
+                    if (esMiembroDeClase && (s instanceof NodoDeclaracion || s instanceof NodoAsignacion)) {
+                        continue;
+                    }
                     if (s instanceof NodoDeclaracion decl && decl.getIdentificador() != null) {
                         lista.add(new CandidatoVariable(decl.getIdentificador(), decl.getLinea(), decl.getColumna(), true));
                     } else if (s instanceof NodoAsignacion asig && asig.getIdentificador() != null) {
@@ -496,12 +503,31 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
                 return null;
             }
 
-            // Excluir miembros directos de clases / estructuras
+            // Los miembros directos de una clase (campos) no son candidatos;
+            // sí lo son las variables locales de métodos, constructores y operadores.
             @Override
             public Void visitar(NodoEstructura nodo) {
-                // Solo inspeccionamos si es un método o constructor, no los campos globales de una clase
-                if ("method".equals(nodo.getTipoEstructura()) || "constructor".equals(nodo.getTipoEstructura())) {
-                    if (nodo.getCuerpo() != null) nodo.getCuerpo().accept(this);
+                String tipo = nodo.getTipoEstructura();
+                boolean esCuerpoEjecutable = "method".equals(tipo) || "constructor".equals(tipo)
+                        || "operator".equals(tipo);
+                boolean esContenedor = "class".equals(tipo) || "namespace".equals(tipo)
+                        || "interface".equals(tipo);
+                if (nodo.getCuerpo() == null || !(esCuerpoEjecutable || esContenedor)) {
+                    return null;
+                }
+                if (esCuerpoEjecutable) {
+                    profundidadMetodo++;
+                } else {
+                    profundidadClase++;
+                }
+                try {
+                    nodo.getCuerpo().accept(this);
+                } finally {
+                    if (esCuerpoEjecutable) {
+                        profundidadMetodo--;
+                    } else {
+                        profundidadClase--;
+                    }
                 }
                 return null;
             }
