@@ -72,6 +72,11 @@ public class AnalizadorUso {
                 continue;
             }
 
+            if (t.kind == AnalizadorConstants.CADENA_INTERPOLADA) {
+                leidas.addAll(identificadoresInterpolados(t.image));
+                continue;
+            }
+
             if (t.kind == AnalizadorConstants.IDENTIFICADOR) {
                 String nombre = t.image;
 
@@ -102,6 +107,30 @@ public class AnalizadorUso {
         }
 
         return leidas;
+    }
+
+    private static final java.util.regex.Pattern HUECO_INTERPOLADO =
+            java.util.regex.Pattern.compile("\\{([^{}]*)\\}");
+    private static final java.util.regex.Pattern IDENTIFICADOR_SIMPLE =
+            java.util.regex.Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
+
+    /**
+     * Extrae, de forma conservadora, todos los identificadores que aparecen dentro de
+     * los huecos {...} de una cadena interpolada ($"...{x}...").
+     */
+    static Set<String> identificadoresInterpolados(String imagen) {
+        Set<String> ids = new HashSet<>();
+        if (imagen == null) return ids;
+        // Los literales '{{' y '}}' son llaves escapadas, no huecos
+        String limpio = imagen.replace("{{", "").replace("}}", "");
+        java.util.regex.Matcher m = HUECO_INTERPOLADO.matcher(limpio);
+        while (m.find()) {
+            java.util.regex.Matcher id = IDENTIFICADOR_SIMPLE.matcher(m.group(1));
+            while (id.find()) {
+                ids.add(id.group());
+            }
+        }
+        return ids;
     }
 
     /**
