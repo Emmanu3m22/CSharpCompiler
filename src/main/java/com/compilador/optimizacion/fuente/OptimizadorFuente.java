@@ -126,6 +126,22 @@ public class OptimizadorFuente {
             if (!huboCambios) break;
         }
 
+        // Verificar el texto que realmente se entregaría (colapsado, sin comentarios).
+        // Si tiene más errores que el original, la optimización se rechaza por completo.
+        VerificacionOptimizado verificacion = VerificadorCodigoOptimizado.verificar(actualDespues);
+        if (!verificacion.valido()) {
+            int erroresOriginal = VerificadorCodigoOptimizado.verificar(codigoOriginal).totalErrores();
+            if (verificacion.totalErrores() > erroresOriginal) {
+                advertencias.add("Se descartó la optimización: el código optimizado tiene "
+                        + verificacion.totalErrores() + " error(es) que el original no tenía.");
+                return new ResultadoOptimizacionFuente(
+                        codigoOriginal, codigoOriginal, codigoOriginal, null,
+                        List.of(), false, null,
+                        System.nanoTime() - inicioTotal,
+                        advertencias, verificacion, actualDespues);
+            }
+        }
+
         long tiempoTotal = System.nanoTime() - inicioTotal;
 
         // Intentar parsear el código enmascarado final para generar el AST limpio
@@ -147,7 +163,9 @@ public class OptimizadorFuente {
                 false,
                 null,
                 tiempoTotal,
-                advertencias
+                advertencias,
+                verificacion,
+                null
         );
     }
 }
