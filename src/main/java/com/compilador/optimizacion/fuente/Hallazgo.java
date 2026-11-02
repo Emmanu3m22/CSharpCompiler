@@ -19,6 +19,7 @@ public record Hallazgo(
         CONDICION_CONSTANTE("Condición Constante"),
         VARIABLE_SIN_USO("Variable Sin Uso"),
         ALMACENAMIENTO_SOBRESCRITO("Almacenamiento Sobrescrito"),
+        PROPAGACION_COPIAS("Propagación de Copias"),
         OTRO("Optimización");
 
         private final String etiqueta;

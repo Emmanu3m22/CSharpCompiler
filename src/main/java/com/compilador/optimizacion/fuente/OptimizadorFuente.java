@@ -37,6 +37,7 @@ public class OptimizadorFuente {
     public static OptimizadorFuente crearPorDefecto() {
         OptimizadorFuente opt = new OptimizadorFuente();
         opt.agregarPase(new EliminadorCodigoMuerto());
+        opt.agregarPase(new PropagadorCopias());
         return opt;
     }
 
@@ -110,7 +111,7 @@ public class OptimizadorFuente {
                         etapa.nombre(),
                         etapa.descripcion(),
                         actualDespues,
-                        etapa.codigoDespues(),
+                        etapa.hayCambios() ? etapa.codigoDespues() : actualDespues,
                         etapa.codigoEnmascarado(),
                         etapa.hallazgos(),
                         etapa.rangosEliminados(),

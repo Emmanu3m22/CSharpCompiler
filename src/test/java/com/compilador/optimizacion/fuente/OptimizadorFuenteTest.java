@@ -92,7 +92,8 @@ public class OptimizadorFuenteTest {
     void testCrearPorDefecto() {
         OptimizadorFuente opt = OptimizadorFuente.crearPorDefecto();
         assertNotNull(opt);
-        assertEquals(1, opt.getPases().size());
+        assertEquals(2, opt.getPases().size());
         assertInstanceOf(EliminadorCodigoMuerto.class, opt.getPases().get(0));
+        assertInstanceOf(PropagadorCopias.class, opt.getPases().get(1));
     }
 }
