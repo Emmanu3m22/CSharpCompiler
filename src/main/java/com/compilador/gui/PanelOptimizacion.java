@@ -1,23 +1,36 @@
 package com.compilador.gui;
 
+import com.compilador.optimizacion.fuente.GuardadorCodigo;
 import com.compilador.optimizacion.fuente.Hallazgo;
 import com.compilador.optimizacion.fuente.ResultadoOptimizacionFuente;
+import com.compilador.optimizacion.fuente.VerificacionOptimizado;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
+import java.awt.datatransfer.StringSelection;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Panel para visualizar el proceso de optimización:
  * <ul>
- *   <li>Visualización del Código Optimizado (limpio, sin código muerto ni comentarios).</li>
- *   <li>Bitácora de eliminaciones con número de línea, regla aplicada, código eliminado y motivo pedagógico.</li>
- *   <li>Navegación interactiva al editor principal al hacer clic en cualquier hallazgo.</li>
+ *   <li>Código optimizado (limpio, sin código muerto ni comentarios) con opciones de
+ *       guardar, copiar y reemplazar el contenido del editor.</li>
+ *   <li>Bitácora de eliminaciones con número de línea, regla aplicada, código eliminado y motivo.</li>
+ *   <li>Verificación del código optimizado: errores léxicos, sintácticos y semánticos, y
+ *       advertencias del optimizador, explicados con claridad.</li>
  * </ul>
+ * Si el código optimizado resultaría inválido, la optimización no se aplica y se explica por qué.
  */
 public class PanelOptimizacion extends JPanel {
 
@@ -25,20 +38,48 @@ public class PanelOptimizacion extends JPanel {
             "#", "Línea", "Regla", "Código Eliminado", "Motivo"
     };
 
+    private static final String[] COL_VERIFICACION = {
+            "Tipo", "Línea (código optimizado)", "Mensaje", "Sugerencia"
+    };
+
+    private static final String TITULO_CODIGO_OK = "CÓDIGO OPTIMIZADO (LIMPIO)";
+    private static final String TITULO_CODIGO_RECHAZADO =
+            "CÓDIGO OPTIMIZADO RECHAZADO — NO SE APLICÓ (las líneas de los errores son las de este texto)";
+
     private final JLabel labelEstado;
+    private final JLabel labelTituloCodigo;
     private final JTextArea areaDespues;
     private final JTable tablaHallazgos;
     private final DefaultTableModel modeloHallazgos;
+    private final JTable tablaVerificacion;
+    private final DefaultTableModel modeloVerificacion;
+    private final JTabbedPane pestanasInferiores;
+    private final JButton btnGuardar;
+    private final JButton btnCopiar;
+    private final JButton btnReemplazar;
+    private final JLabel labelAcciones;
     private final BiConsumer<Integer, Integer> alSeleccionarUbicacion;
+    private final Consumer<String> alReemplazarEditor;
+    private final Supplier<String> nombreArchivoOriginal;
 
     private ResultadoOptimizacionFuente ultimoResultado;
+    /** Líneas (del código optimizado) de cada fila de la tabla de verificación; 0 = sin ubicación. */
+    private int[] lineasVerificacion = new int[0];
 
     public PanelOptimizacion() {
         this((l, c) -> {});
     }
 
     public PanelOptimizacion(BiConsumer<Integer, Integer> alSeleccionarUbicacion) {
+        this(alSeleccionarUbicacion, null, null);
+    }
+
+    public PanelOptimizacion(BiConsumer<Integer, Integer> alSeleccionarUbicacion,
+                             Consumer<String> alReemplazarEditor,
+                             Supplier<String> nombreArchivoOriginal) {
         this.alSeleccionarUbicacion = alSeleccionarUbicacion != null ? alSeleccionarUbicacion : (l, c) -> {};
+        this.alReemplazarEditor = alReemplazarEditor;
+        this.nombreArchivoOriginal = nombreArchivoOriginal != null ? nombreArchivoOriginal : () -> null;
 
         setLayout(new BorderLayout(0, 0));
         setBackground(Colores.FONDO_PANEL);
@@ -58,59 +99,73 @@ public class PanelOptimizacion extends JPanel {
         labelEstado.setForeground(Colores.TEXTO_TENUE);
         header.add(labelEstado, BorderLayout.EAST);
 
-        add(header, BorderLayout.NORTH);
+        // ── Barra de acciones ──
+        JPanel acciones = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        acciones.setBackground(Colores.FONDO_PANEL);
+        btnGuardar = crearBotonAccion("Guardar como…", "Guarda el código optimizado en un archivo .cs", e -> guardar());
+        btnCopiar = crearBotonAccion("Copiar", "Copia el código optimizado al portapapeles", e -> copiar());
+        btnReemplazar = crearBotonAccion("Reemplazar en editor",
+                "Sustituye el código del editor por el optimizado", e -> reemplazarEnEditor());
+        labelAcciones = new JLabel(" ");
+        labelAcciones.setFont(Colores.FUENTE_PEQUENA);
+        labelAcciones.setForeground(Colores.TEXTO_TENUE);
+        acciones.add(btnGuardar);
+        acciones.add(btnCopiar);
+        acciones.add(btnReemplazar);
+        acciones.add(labelAcciones);
 
-        // ── Split Vertical Principal: Arriba (Código Optimizado) | Abajo (Bitácora de Hallazgos) ──
+        JPanel norte = new JPanel(new BorderLayout());
+        norte.setBackground(Colores.FONDO_PANEL);
+        norte.add(header, BorderLayout.NORTH);
+        norte.add(acciones, BorderLayout.SOUTH);
+        add(norte, BorderLayout.NORTH);
+
+        // ── Split Vertical Principal: Arriba (Código Optimizado) | Abajo (Pestañas) ──
         JSplitPane splitPrincipal = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         splitPrincipal.setDividerLocation(320);
         splitPrincipal.setDividerSize(5);
         Colores.estilizarSplit(splitPrincipal);
 
-        // ── Panel Superior: Código Optimizado Único (Limpio) ──
         areaDespues = crearAreaTexto();
-        JPanel contenedorDespues = crearContenedorCodigo("CÓDIGO OPTIMIZADO (LIMPIO)", Colores.ACENTO_OPTIMIZACION, areaDespues);
-
+        labelTituloCodigo = new JLabel(TITULO_CODIGO_OK);
+        JPanel contenedorDespues = crearContenedorCodigo(labelTituloCodigo, Colores.ACENTO_OPTIMIZACION, areaDespues);
         splitPrincipal.setTopComponent(Colores.conMargen(contenedorDespues));
 
-        // ── Panel Inferior: Tabla de Hallazgos y Motivos ──
-        modeloHallazgos = new DefaultTableModel(COL_HALLAZGOS, 0) {
-            @Override
-            public boolean isCellEditable(int row, int col) {
-                return false;
-            }
-        };
+        // ── Pestaña: Eliminaciones ──
+        modeloHallazgos = crearModelo(COL_HALLAZGOS);
         tablaHallazgos = crearTabla(modeloHallazgos);
         tablaHallazgos.getColumnModel().getColumn(0).setPreferredWidth(40);
         tablaHallazgos.getColumnModel().getColumn(1).setPreferredWidth(60);
         tablaHallazgos.getColumnModel().getColumn(2).setPreferredWidth(160);
         tablaHallazgos.getColumnModel().getColumn(3).setPreferredWidth(220);
         tablaHallazgos.getColumnModel().getColumn(4).setPreferredWidth(320);
-
         tablaHallazgos.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                seleccionarHallazgo();
-            }
+            if (!e.getValueIsAdjusting()) seleccionarHallazgo();
         });
 
-        JScrollPane scrollTabla = new JScrollPane(tablaHallazgos);
-        scrollTabla.setBorder(BorderFactory.createEmptyBorder());
-        scrollTabla.getViewport().setBackground(Colores.FONDO_PANEL);
+        // ── Pestaña: Verificación ──
+        modeloVerificacion = crearModelo(COL_VERIFICACION);
+        tablaVerificacion = crearTabla(modeloVerificacion);
+        tablaVerificacion.getColumnModel().getColumn(0).setPreferredWidth(170);
+        tablaVerificacion.getColumnModel().getColumn(1).setPreferredWidth(130);
+        tablaVerificacion.getColumnModel().getColumn(2).setPreferredWidth(360);
+        tablaVerificacion.getColumnModel().getColumn(3).setPreferredWidth(260);
+        tablaVerificacion.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) seleccionarErrorVerificacion();
+        });
 
-        JPanel panelInferior = new JPanel(new BorderLayout(0, 4));
-        panelInferior.setBackground(Colores.FONDO_PANEL);
-
-        JLabel lblBitacora = new JLabel("Bitácora de Código Muerto Eliminado y Motivos:");
-        lblBitacora.setFont(Colores.FUENTE_NORMAL);
-        lblBitacora.setForeground(Colores.TEXTO_TENUE);
-        lblBitacora.setBorder(BorderFactory.createEmptyBorder(4, 6, 2, 6));
-
-        panelInferior.add(lblBitacora, BorderLayout.NORTH);
-        panelInferior.add(Colores.conMargen(scrollTabla), BorderLayout.CENTER);
-
-        splitPrincipal.setBottomComponent(panelInferior);
+        pestanasInferiores = new JTabbedPane();
+        pestanasInferiores.setBackground(Colores.FONDO_PANEL);
+        pestanasInferiores.setForeground(Colores.TEXTO_NORMAL);
+        pestanasInferiores.addTab("Eliminaciones", envolver(tablaHallazgos));
+        pestanasInferiores.addTab("Verificación", envolver(tablaVerificacion));
+        splitPrincipal.setBottomComponent(Colores.conMargen(pestanasInferiores));
 
         add(splitPrincipal, BorderLayout.CENTER);
+        actualizarAcciones(null);
     }
+
+    // ───────────────────────── Carga de resultados ─────────────────────────
 
     /**
      * Carga el resultado del pipeline de optimización.
@@ -122,6 +177,7 @@ public class PanelOptimizacion extends JPanel {
         if (resultado == null) {
             labelEstado.setText("Sin análisis");
             labelEstado.setForeground(Colores.TEXTO_TENUE);
+            actualizarAcciones(null);
             return;
         }
 
@@ -129,10 +185,27 @@ public class PanelOptimizacion extends JPanel {
             labelEstado.setText("⚠ " + (resultado.motivoOmision() != null ? resultado.motivoOmision() : "Optimización omitida"));
             labelEstado.setForeground(Colores.ADVERTENCIA);
             areaDespues.setText("// Optimización omitida debido a errores en fases previas.");
+            actualizarAcciones(resultado);
+            return;
+        }
+
+        cargarVerificacion(resultado);
+
+        if (resultado.rechazada()) {
+            labelTituloCodigo.setText(TITULO_CODIGO_RECHAZADO);
+            labelTituloCodigo.setForeground(Colores.ERROR);
+            areaDespues.setText(resultado.codigoRechazado());
+            areaDespues.setCaretPosition(0);
+            labelEstado.setText(String.format("✗ Optimización NO aplicada: el código optimizado tendría %d error(es). Tu código original no se modificó.",
+                    resultado.verificacion().totalErrores()));
+            labelEstado.setForeground(Colores.ERROR);
+            pestanasInferiores.setSelectedIndex(1);
+            actualizarAcciones(resultado);
             return;
         }
 
         areaDespues.setText(resultado.codigoFinal());
+        areaDespues.setCaretPosition(0);
 
         List<Hallazgo> hallazgos = resultado.todosLosHallazgos();
         int i = 1;
@@ -145,17 +218,59 @@ public class PanelOptimizacion extends JPanel {
                     h.motivo()
             });
         }
+        pestanasInferiores.setTitleAt(0, "Eliminaciones (" + hallazgos.size() + ")");
 
-        if (hallazgos.isEmpty()) {
-            labelEstado.setText("✓ 0 código muerto detectado (código óptimo)");
+        if (!resultado.verificacion().valido()) {
+            labelEstado.setText(String.format("✗ El código tiene %d error(es); no se puede guardar ni reemplazar. Revisa la pestaña Verificación.",
+                    resultado.verificacion().totalErrores()));
+            labelEstado.setForeground(Colores.ERROR);
+            pestanasInferiores.setSelectedIndex(1);
+        } else if (hallazgos.isEmpty()) {
+            labelEstado.setText("✓ 0 código muerto detectado (código óptimo) · verificado sin errores");
             labelEstado.setForeground(Colores.EXITO);
         } else {
-            labelEstado.setText(String.format("✓ %d eliminación(es) · Ahorro en cuádruplos y sentencias", hallazgos.size()));
+            labelEstado.setText(String.format("✓ %d eliminación(es) · verificado sin errores léxicos, sintácticos ni semánticos",
+                    hallazgos.size()));
             labelEstado.setForeground(Colores.ACENTO_OPTIMIZACION);
+            pestanasInferiores.setSelectedIndex(0);
             if (tablaHallazgos.getRowCount() > 0) {
                 tablaHallazgos.setRowSelectionInterval(0, 0);
             }
         }
+        if (!resultado.advertencias().isEmpty() && resultado.verificacion().valido()) {
+            labelEstado.setText(labelEstado.getText() + " · ⚠ " + resultado.advertencias().size() + " advertencia(s)");
+        }
+        actualizarAcciones(resultado);
+    }
+
+    private void cargarVerificacion(ResultadoOptimizacionFuente resultado) {
+        List<VerificacionOptimizado.ErrorVerificacion> errores = resultado.verificacion().errores();
+        List<String> advertencias = resultado.advertencias();
+        lineasVerificacion = new int[errores.size() + advertencias.size()];
+        int fila = 0;
+
+        for (VerificacionOptimizado.ErrorVerificacion e : errores) {
+            modeloVerificacion.addRow(new Object[]{
+                    "Error " + e.fase(),
+                    e.linea() > 0 ? "Línea " + e.linea() + ", col. " + e.columna() : "—",
+                    e.titulo() + ": " + e.mensaje(),
+                    e.sugerencia()
+            });
+            lineasVerificacion[fila++] = e.linea();
+        }
+        for (String a : advertencias) {
+            modeloVerificacion.addRow(new Object[]{"Advertencia del optimizador", "—", a, ""});
+            lineasVerificacion[fila++] = 0;
+        }
+        if (errores.isEmpty() && advertencias.isEmpty()) {
+            modeloVerificacion.addRow(new Object[]{
+                    "✓ Sin problemas", "—",
+                    "El código optimizado no tiene errores léxicos, sintácticos ni semánticos.", ""});
+            lineasVerificacion = new int[]{0};
+        }
+        pestanasInferiores.setTitleAt(1, errores.isEmpty() && advertencias.isEmpty()
+                ? "Verificación ✓"
+                : "Verificación (" + errores.size() + " error(es), " + advertencias.size() + " advertencia(s))");
     }
 
     /**
@@ -175,12 +290,101 @@ public class PanelOptimizacion extends JPanel {
         this.ultimoResultado = null;
         limpiarVistas();
         labelEstado.setText("");
+        actualizarAcciones(null);
     }
 
     private void limpiarVistas() {
         areaDespues.setText("");
         modeloHallazgos.setRowCount(0);
+        modeloVerificacion.setRowCount(0);
+        lineasVerificacion = new int[0];
+        labelTituloCodigo.setText(TITULO_CODIGO_OK);
+        labelTituloCodigo.setForeground(Colores.ACENTO_OPTIMIZACION);
+        pestanasInferiores.setTitleAt(0, "Eliminaciones");
+        pestanasInferiores.setTitleAt(1, "Verificación");
+        labelAcciones.setText(" ");
     }
+
+    // ───────────────────────── Acciones ─────────────────────────
+
+    /** Habilita las acciones solo si hay un código optimizado válido y explica por qué si no. */
+    private void actualizarAcciones(ResultadoOptimizacionFuente r) {
+        boolean aplicable = r != null && r.aplicable();
+        btnGuardar.setEnabled(aplicable);
+        btnCopiar.setEnabled(aplicable);
+        btnReemplazar.setEnabled(aplicable && alReemplazarEditor != null);
+
+        String motivo;
+        if (r == null) {
+            motivo = "Analiza un código para habilitar estas opciones.";
+        } else if (r.omitida()) {
+            motivo = "Deshabilitado: la optimización se omitió por errores en el código.";
+        } else if (r.rechazada()) {
+            motivo = "Deshabilitado: el código optimizado no es válido (ver pestaña Verificación).";
+        } else if (!r.verificacion().valido()) {
+            motivo = "Deshabilitado: el código tiene errores (ver pestaña Verificación).";
+        } else {
+            motivo = " ";
+        }
+        labelAcciones.setText(motivo);
+    }
+
+    private String codigoOptimizado() {
+        return ultimoResultado != null && ultimoResultado.aplicable() ? ultimoResultado.codigoFinal() : null;
+    }
+
+    private void guardar() {
+        String codigo = codigoOptimizado();
+        if (codigo == null) return;
+
+        JFileChooser chooser = new JFileChooser(".");
+        chooser.setDialogTitle("Guardar código optimizado");
+        chooser.setFileFilter(new FileNameExtensionFilter("Archivos C# (*.cs)", "cs"));
+        chooser.setSelectedFile(new File(GuardadorCodigo.sugerirNombre(nombreArchivoOriginal.get())));
+
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        Path destino = chooser.getSelectedFile().toPath();
+
+        try {
+            Path guardado;
+            try {
+                guardado = GuardadorCodigo.guardar(destino, codigo, false);
+            } catch (FileAlreadyExistsException ex) {
+                int r = JOptionPane.showConfirmDialog(this,
+                        "El archivo ya existe:\n" + ex.getFile() + "\n¿Deseas sobrescribirlo?",
+                        "Archivo existente", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                if (r != JOptionPane.YES_OPTION) return;
+                guardado = GuardadorCodigo.guardar(destino, codigo, true);
+            }
+            labelAcciones.setForeground(Colores.EXITO);
+            labelAcciones.setText("✓ Guardado en " + guardado);
+        } catch (IOException | IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "No se pudo guardar el código optimizado:\n" + ex.getMessage(),
+                    "Error al guardar", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void copiar() {
+        String codigo = codigoOptimizado();
+        if (codigo == null) return;
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(codigo), null);
+        labelAcciones.setForeground(Colores.EXITO);
+        labelAcciones.setText("✓ Código optimizado copiado al portapapeles");
+    }
+
+    private void reemplazarEnEditor() {
+        String codigo = codigoOptimizado();
+        if (codigo == null || alReemplazarEditor == null) return;
+        int r = JOptionPane.showConfirmDialog(this,
+                "Se reemplazará el contenido del editor por el código optimizado.\n"
+                        + "El código original se perderá si no lo has guardado.\n¿Continuar?",
+                "Reemplazar en editor", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (r != JOptionPane.YES_OPTION) return;
+        alReemplazarEditor.accept(codigo);
+    }
+
+    // ───────────────────────── Selección en tablas ─────────────────────────
 
     private void seleccionarHallazgo() {
         int fila = tablaHallazgos.getSelectedRow();
@@ -197,6 +401,50 @@ public class PanelOptimizacion extends JPanel {
         }
     }
 
+    /** Resalta en el código optimizado la línea del error elegido en la tabla de verificación. */
+    private void seleccionarErrorVerificacion() {
+        int fila = tablaVerificacion.getSelectedRow();
+        if (fila < 0 || fila >= lineasVerificacion.length) return;
+        int linea = lineasVerificacion[fila];
+        if (linea <= 0) return;
+        try {
+            int idx = Math.min(linea - 1, Math.max(0, areaDespues.getLineCount() - 1));
+            int ini = areaDespues.getLineStartOffset(idx);
+            int fin = areaDespues.getLineEndOffset(idx);
+            areaDespues.requestFocusInWindow();
+            areaDespues.select(ini, Math.max(ini, fin - 1));
+        } catch (javax.swing.text.BadLocationException ignorada) {
+            // línea fuera de rango: no hay nada que resaltar
+        }
+    }
+
+    // ───────────────────────── Construcción de componentes ─────────────────────────
+
+    private JButton crearBotonAccion(String texto, String tooltip, java.awt.event.ActionListener al) {
+        JButton b = new JButton(texto);
+        b.setFont(Colores.FUENTE_NORMAL);
+        b.setToolTipText(tooltip);
+        b.setFocusPainted(false);
+        b.addActionListener(al);
+        return b;
+    }
+
+    private DefaultTableModel crearModelo(String[] columnas) {
+        return new DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) {
+                return false;
+            }
+        };
+    }
+
+    private JScrollPane envolver(JTable tabla) {
+        JScrollPane scroll = new JScrollPane(tabla);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getViewport().setBackground(Colores.FONDO_PANEL);
+        return scroll;
+    }
+
     private JTextArea crearAreaTexto() {
         JTextArea area = new JTextArea();
         area.setFont(Colores.FUENTE_CODIGO);
@@ -208,11 +456,10 @@ public class PanelOptimizacion extends JPanel {
         return area;
     }
 
-    private JPanel crearContenedorCodigo(String titulo, Color colorAcento, JTextArea area) {
+    private JPanel crearContenedorCodigo(JLabel lbl, Color colorAcento, JTextArea area) {
         JPanel p = new JPanel(new BorderLayout());
         p.setBackground(Colores.FONDO_PANEL);
 
-        JLabel lbl = new JLabel(titulo);
         lbl.setFont(Colores.FUENTE_NORMAL);
         lbl.setForeground(colorAcento);
         lbl.setBorder(BorderFactory.createCompoundBorder(
@@ -259,15 +506,19 @@ public class PanelOptimizacion extends JPanel {
                 c.setForeground(isSelected ? Colores.SEL_TEXTO : Colores.TEXTO_NORMAL);
                 setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
 
-                // Colorear el tipo de regla para visualización clara
-                if (column == 2 && value != null) {
+                // Colorear el tipo (columna "Regla" en Eliminaciones, "Tipo" en Verificación)
+                boolean esColumnaTipo = (table == tablaHallazgos && column == 2)
+                        || (table == tablaVerificacion && column == 0);
+                if (esColumnaTipo && value != null && !isSelected) {
                     String tipo = value.toString();
-                    if (tipo.contains("Inalcanzable")) {
-                        c.setForeground(isSelected ? Colores.SEL_TEXTO : Colores.ERROR);
-                    } else if (tipo.contains("Constante")) {
-                        c.setForeground(isSelected ? Colores.SEL_TEXTO : Colores.ADVERTENCIA);
+                    if (tipo.contains("Inalcanzable") || tipo.startsWith("Error")) {
+                        c.setForeground(Colores.ERROR);
+                    } else if (tipo.contains("Constante") || tipo.startsWith("Advertencia")) {
+                        c.setForeground(Colores.ADVERTENCIA);
                     } else if (tipo.contains("Sin Uso")) {
-                        c.setForeground(isSelected ? Colores.SEL_TEXTO : Colores.ACENTO_OPTIMIZACION);
+                        c.setForeground(Colores.ACENTO_OPTIMIZACION);
+                    } else if (tipo.startsWith("✓")) {
+                        c.setForeground(Colores.EXITO);
                     }
                 }
                 return c;

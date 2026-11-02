@@ -70,6 +70,9 @@ public class AplicacionPrincipal extends JFrame {
     private List<ErrorLexico> ultimosErroresLexicos = new ArrayList<>();
     private List<ErrorSintactico> ultimosErroresSintacticos = new ArrayList<>();
 
+    /** Nombre del archivo abierto/guardado (para sugerir el nombre del codigo optimizado). */
+    private String nombreArchivoActual;
+
     // ── Botones del toolbar ──
     private JButton btnAnalizar;
     private JButton btnLimpiar;
@@ -104,7 +107,16 @@ public class AplicacionPrincipal extends JFrame {
         panelSintactico = new PanelSintactico((linea, columna) -> editor.irAUbicacion(linea, columna));
         panelSemantico = new PanelSemantico();
         panelCodigoIntermedio = new PanelCodigoIntermedio((linea, columna) -> editor.irAUbicacion(linea, columna));
-        panelOptimizacion = new PanelOptimizacion((linea, columna) -> editor.irAUbicacion(linea, columna));
+        panelOptimizacion = new PanelOptimizacion(
+                (linea, columna) -> editor.irAUbicacion(linea, columna),
+                codigoOptimizado -> {
+                    editor.setCodigo(codigoOptimizado);
+                    limpiarResultados();
+                    JOptionPane.showMessageDialog(this,
+                            "El editor ahora contiene el código optimizado.\nPresiona Analizar para volver a compilarlo.",
+                            "Código reemplazado", JOptionPane.INFORMATION_MESSAGE);
+                },
+                () -> nombreArchivoActual);
         panelResumen = new PanelResumen();
 
         // ── Ensamblar layout ──
@@ -584,6 +596,7 @@ public class AplicacionPrincipal extends JFrame {
                         StandardCharsets.UTF_8);
                 editor.setCodigo(contenido);
                 limpiarResultados();
+                nombreArchivoActual = archivo.getName();
                 setTitle("Compilador LenguajeCSharp — " + archivo.getName());
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this,
@@ -603,6 +616,7 @@ public class AplicacionPrincipal extends JFrame {
                 java.nio.file.Files.write(archivo.toPath(), editor.getCodigo().getBytes(StandardCharsets.UTF_8));
                 JOptionPane.showMessageDialog(this, "Archivo guardado exitosamente.", "Guardar",
                         JOptionPane.INFORMATION_MESSAGE);
+                nombreArchivoActual = archivo.getName();
                 setTitle("Compilador LenguajeCSharp — " + archivo.getName());
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this, "Error al guardar el archivo: " + ex.getMessage(), "Error",
