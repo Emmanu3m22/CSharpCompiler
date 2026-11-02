@@ -15,10 +15,20 @@ public record ResultadoOptimizacionFuente(
         List<EtapaOptimizacion> etapas,
         boolean omitida,
         String motivoOmision,
-        long tiempoTotalNanos
+        long tiempoTotalNanos,
+        List<String> advertencias
 ) {
     public ResultadoOptimizacionFuente {
         etapas = etapas == null ? List.of() : List.copyOf(etapas);
+        advertencias = advertencias == null ? List.of() : List.copyOf(advertencias);
+    }
+
+    /** Constructor sin advertencias (compatibilidad). */
+    public ResultadoOptimizacionFuente(String codigoOriginal, String codigoFinal, String codigoEnmascaradoFinal,
+                                       NodoPrograma astLimpio, List<EtapaOptimizacion> etapas, boolean omitida,
+                                       String motivoOmision, long tiempoTotalNanos) {
+        this(codigoOriginal, codigoFinal, codigoEnmascaradoFinal, astLimpio, etapas, omitida,
+                motivoOmision, tiempoTotalNanos, List.of());
     }
 
     public static ResultadoOptimizacionFuente omitida(String codigo, String motivo) {

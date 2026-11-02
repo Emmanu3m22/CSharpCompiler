@@ -59,21 +59,41 @@ public class AnalizadorUso {
      */
     public static Set<String> obtenerVariablesLeidas(CodigoFuente fuente, List<RangoTexto> rangosIgnorados) {
         if (fuente == null) return Collections.emptySet();
+        RangosMarcados ignorados = new RangosMarcados();
+        if (rangosIgnorados != null) {
+            for (RangoTexto r : rangosIgnorados) ignorados.agregar(r);
+        }
+        return indexarLecturas(fuente).nombresLeidos(ignorados);
+    }
+
+    /**
+     * Recorre los tokens una sola vez y devuelve, por variable, las posiciones donde se lee.
+     * Permite consultar luego "¿sigue leída fuera de estos rangos?" sin volver a recorrer el código.
+     */
+    public static IndiceLecturas indexarLecturas(CodigoFuente fuente) {
+        return indexarLecturas(fuente, null);
+    }
+
+    /**
+     * @param escriturasEliminables posiciones de texto (inicio del identificador) de las asignaciones
+     *        que el pase sabe que puede eliminar. Una asignación fuera de este conjunto cuenta como
+     *        lectura, para no eliminar una variable cuyas escrituras permanecen (p. ej. dentro de un
+     *        try). {@code null} = comportamiento clásico: toda asignación simple es una escritura.
+     */
+    public static IndiceLecturas indexarLecturas(CodigoFuente fuente, Set<Integer> escriturasEliminables) {
+        IndiceLecturas indice = new IndiceLecturas();
+        if (fuente == null) return indice;
 
         List<Token> tokens = fuente.getTokens();
-        Set<String> leidas = new HashSet<>();
-        List<RangoTexto> ignorados = CodigoFuente.normalizarRangos(rangosIgnorados);
 
         for (int i = 0; i < tokens.size(); i++) {
             Token t = tokens.get(i);
-
-            // Ignorar tokens en rangos eliminados
-            if (estaEnRangos(fuente.inicioDe(t), ignorados)) {
-                continue;
-            }
+            int posicion = fuente.inicioDe(t);
 
             if (t.kind == AnalizadorConstants.CADENA_INTERPOLADA) {
-                leidas.addAll(identificadoresInterpolados(t.image));
+                for (String id : identificadoresInterpolados(t.image)) {
+                    indice.registrar(id, posicion);
+                }
                 continue;
             }
 
@@ -96,17 +116,26 @@ public class AnalizadorUso {
                 }
 
                 // Si es el lado izquierdo de una asignación simple ("x = ..."), no es lectura
-                if (esDestinoAsignacionSimple(tokens, i)) {
+                // (solo cuando esa sentencia es eliminable; si no, la variable debe conservarse)
+                if (esDestinoAsignacionSimple(tokens, i)
+                        && (escriturasEliminables == null || escriturasEliminables.contains(posicion))) {
+                    continue;
+                }
+
+                // Asignación compuesta como sentencia ("x += expr;"): escribe x pero no la lee
+                // para ningún otro fin; si nadie más la lee, la sentencia es eliminable.
+                if (escriturasEliminables != null && escriturasEliminables.contains(posicion)
+                        && esDestinoAsignacionCompuestaSentencia(tokens, i)) {
                     continue;
                 }
 
                 // En cualquier otro caso (RHS de asignación, argumento de función, condición,
-                // asignación compuesta x += 1, índice arr[x], return x), es una LECTURA.
-                leidas.add(nombre);
+                // índice arr[x], return x, ref/out x), es una LECTURA.
+                indice.registrar(nombre, posicion);
             }
         }
 
-        return leidas;
+        return indice;
     }
 
     private static final java.util.regex.Pattern HUECO_INTERPOLADO =
@@ -212,6 +241,34 @@ public class AnalizadorUso {
                     return true;
                 }
                 j--;
+            }
+        }
+        return false;
+    }
+
+    private static boolean esDestinoAsignacionCompuestaSentencia(List<Token> tokens, int idx) {
+        if (idx + 1 >= tokens.size() || !OPERADORES_ASIG_COMPUESTA.contains(tokens.get(idx + 1).kind)) {
+            return false;
+        }
+        // Debe iniciar una sentencia: antes solo puede haber ';', '{', '}' o nada
+        if (idx > 0) {
+            int previo = tokens.get(idx - 1).kind;
+            if (previo != AnalizadorConstants.PUNTO_COMA
+                    && previo != AnalizadorConstants.LLAVE_IZQ
+                    && previo != AnalizadorConstants.LLAVE_DER) {
+                return false;
+            }
+        }
+        // Debe terminar en ';' sin cerrar antes un paréntesis (p. ej. cabecera de for: "; i += 2)")
+        int profundidad = 0;
+        for (int j = idx + 2; j < tokens.size(); j++) {
+            int k = tokens.get(j).kind;
+            if (k == AnalizadorConstants.PAREN_IZQ) profundidad++;
+            else if (k == AnalizadorConstants.PAREN_DER) {
+                if (profundidad == 0) return false;
+                profundidad--;
+            } else if (k == AnalizadorConstants.PUNTO_COMA && profundidad == 0) {
+                return true;
             }
         }
         return false;

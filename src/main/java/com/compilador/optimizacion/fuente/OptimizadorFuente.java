@@ -21,6 +21,9 @@ import java.util.List;
  */
 public class OptimizadorFuente {
 
+    /** Límite de repeticiones de la cadena de pases (evita ciclos infinitos). */
+    private static final int MAX_RONDAS = 5;
+
     private final List<PaseOptimizacionFuente> pases;
 
     public OptimizadorFuente() {
@@ -67,30 +70,60 @@ public class OptimizadorFuente {
 
         long inicioTotal = System.nanoTime();
         List<EtapaOptimizacion> etapas = new ArrayList<>();
+        List<String> advertencias = new ArrayList<>();
         String actualEnmascarado = codigoOriginal;
         String actualDespues = codigoOriginal;
 
-        for (PaseOptimizacionFuente pase : pases) {
-            CodigoFuente fuenteActual = new CodigoFuente(actualEnmascarado);
-            long t0 = System.nanoTime();
-            EtapaOptimizacion etapa = pase.aplicar(fuenteActual);
-            long dt = System.nanoTime() - t0;
+        // Los pases pueden habilitarse entre sí (p. ej. plegar constantes deja variables muertas),
+        // por eso se repite la cadena hasta que ninguna etapa produzca cambios.
+        for (int ronda = 1; ronda <= MAX_RONDAS; ronda++) {
+            boolean huboCambios = false;
 
-            // Aseguramos que el tiempo medido sea fiel si el pase no lo calculó internamente
-            EtapaOptimizacion etapaAjustada = new EtapaOptimizacion(
-                    etapa.nombre(),
-                    etapa.descripcion(),
-                    actualDespues,
-                    etapa.codigoDespues(),
-                    etapa.codigoEnmascarado(),
-                    etapa.hallazgos(),
-                    etapa.rangosEliminados(),
-                    etapa.tiempoNanos() > 0 ? etapa.tiempoNanos() : dt
-            );
+            for (PaseOptimizacionFuente pase : pases) {
+                CodigoFuente fuenteActual = new CodigoFuente(actualEnmascarado);
+                long t0 = System.nanoTime();
+                EtapaOptimizacion etapa;
+                try {
+                    etapa = pase.aplicar(fuenteActual);
+                } catch (Throwable e) {
+                    advertencias.add("El pase '" + pase.nombre() + "' falló y se omitió: " + e);
+                    continue;
+                }
+                long dt = System.nanoTime() - t0;
+                if (etapa == null) continue;
 
-            etapas.add(etapaAjustada);
-            actualEnmascarado = etapaAjustada.codigoEnmascarado();
-            actualDespues = etapaAjustada.codigoDespues();
+                // Un pase nunca debe dejar el programa con más errores que antes
+                if (etapa.hayCambios()) {
+                    int antes = ValidadorSintaxis.contarErrores(actualEnmascarado);
+                    int despues = ValidadorSintaxis.contarErrores(etapa.codigoEnmascarado());
+                    if (despues > antes) {
+                        advertencias.add("El pase '" + pase.nombre()
+                                + "' produjo código inválido y se revirtió.");
+                        continue;
+                    }
+                }
+
+                // En rondas adicionales solo interesan las etapas que cambian algo
+                if (ronda > 1 && !etapa.hayCambios()) continue;
+
+                EtapaOptimizacion etapaAjustada = new EtapaOptimizacion(
+                        etapa.nombre(),
+                        etapa.descripcion(),
+                        actualDespues,
+                        etapa.codigoDespues(),
+                        etapa.codigoEnmascarado(),
+                        etapa.hallazgos(),
+                        etapa.rangosEliminados(),
+                        etapa.tiempoNanos() > 0 ? etapa.tiempoNanos() : dt
+                );
+
+                etapas.add(etapaAjustada);
+                actualEnmascarado = etapaAjustada.codigoEnmascarado();
+                actualDespues = etapaAjustada.codigoDespues();
+                if (etapaAjustada.hayCambios()) huboCambios = true;
+            }
+
+            if (!huboCambios) break;
         }
 
         long tiempoTotal = System.nanoTime() - inicioTotal;
@@ -102,7 +135,7 @@ public class OptimizadorFuente {
             Analizador parser = new Analizador(bais);
             astLimpio = parser.programa();
         } catch (Throwable e) {
-            // Si el parser falla (por ejemplo por fragmentos atípicos), queda astLimpio = null
+            advertencias.add("No se pudo generar el AST limpio: " + e.getClass().getSimpleName());
         }
 
         return new ResultadoOptimizacionFuente(
@@ -113,7 +146,8 @@ public class OptimizadorFuente {
                 etapas,
                 false,
                 null,
-                tiempoTotal
+                tiempoTotal,
+                advertencias
         );
     }
 }

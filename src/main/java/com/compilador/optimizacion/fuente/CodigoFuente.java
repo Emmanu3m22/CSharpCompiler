@@ -107,16 +107,22 @@ public class CodigoFuente {
      * o el token más cercano que inicie en o después de esa posición.
      */
     public int buscarIndiceToken(int linea, int columna) {
-        for (int i = 0; i < tokens.size(); i++) {
-            Token t = tokens.get(i);
-            if (t.beginLine == linea && t.beginColumn == columna) {
-                return i;
-            }
-            if (t.beginLine > linea || (t.beginLine == linea && t.beginColumn >= columna)) {
-                return i;
+        // Los tokens están ordenados por posición: búsqueda binaria del primero con (línea, columna) >= objetivo
+        int lo = 0;
+        int hi = tokens.size() - 1;
+        int resultado = -1;
+        while (lo <= hi) {
+            int mid = (lo + hi) >>> 1;
+            Token t = tokens.get(mid);
+            boolean enOdespues = t.beginLine > linea || (t.beginLine == linea && t.beginColumn >= columna);
+            if (enOdespues) {
+                resultado = mid;
+                hi = mid - 1;
+            } else {
+                lo = mid + 1;
             }
         }
-        return -1;
+        return resultado;
     }
 
     /**
