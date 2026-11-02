@@ -1,13 +1,45 @@
 package com.compilador.optimizacion.fuente;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import com.compilador.Analizador;
 import com.compilador.AnalizadorConstants;
 import com.compilador.Token;
-import com.compilador.ast.*;
-
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
+import com.compilador.ast.Nodo;
+import com.compilador.ast.NodoAccesoArreglo;
+import com.compilador.ast.NodoAgrupacion;
+import com.compilador.ast.NodoAsignacion;
+import com.compilador.ast.NodoBloque;
+import com.compilador.ast.NodoCaso;
+import com.compilador.ast.NodoCasteo;
+import com.compilador.ast.NodoComando;
+import com.compilador.ast.NodoDeclaracion;
+import com.compilador.ast.NodoDoWhile;
+import com.compilador.ast.NodoEstructura;
+import com.compilador.ast.NodoFor;
+import com.compilador.ast.NodoIdentificador;
+import com.compilador.ast.NodoIf;
+import com.compilador.ast.NodoIncremento;
+import com.compilador.ast.NodoInstanciacion;
+import com.compilador.ast.NodoLlamadaMetodo;
+import com.compilador.ast.NodoMenosUnario;
+import com.compilador.ast.NodoNegacionLogica;
+import com.compilador.ast.NodoOperacion;
+import com.compilador.ast.NodoOperacionLogica;
+import com.compilador.ast.NodoOperacionRelacional;
+import com.compilador.ast.NodoPrograma;
+import com.compilador.ast.NodoSwitch;
+import com.compilador.ast.NodoTernario;
+import com.compilador.ast.NodoWhile;
+import com.compilador.ast.ParametroMetodo;
 
 /**
  * Propaga copias locales de variables dentro de un mismo bloque.
@@ -18,7 +50,6 @@ import java.util.*;
 public class PropagadorCopias implements PaseOptimizacionFuente {
 
     private record Reemplazo(RangoTexto rango, String texto) {}
-
     private static final class Copia {
         private final String nombre;
         private final String original;
@@ -26,7 +57,6 @@ public class PropagadorCopias implements PaseOptimizacionFuente {
         private final int linea;
         private boolean escrita;
         private boolean propagada;
-
         private Copia(
                 String nombre,
                 String original,
@@ -39,17 +69,14 @@ public class PropagadorCopias implements PaseOptimizacionFuente {
             this.linea = linea;
         }
     }
-
     @Override
     public String nombre() {
         return "Propagación de Copias";
     }
-
     @Override
     public String descripcion() {
         return "Sustituye usos de copias locales por su variable original cuando no hay modificaciones intermedias.";
     }
-
     @Override
     public EtapaOptimizacion aplicar(CodigoFuente fuente) {
         if (fuente == null || fuente.getTexto().trim().isEmpty()) {
