@@ -44,6 +44,8 @@ import com.compilador.semantic.AnalizadorSemantico;
 import com.compilador.semantic.ErrorSemantico;
 import com.compilador.intermedio.GeneradorCodigoIntermedio;
 import com.compilador.intermedio.ProgramaIntermedio;
+import com.compilador.optimizacion.fuente.OptimizadorFuente;
+import com.compilador.optimizacion.fuente.ResultadoOptimizacionFuente;
 
 /**
  * Ventana principal del compilador LenguajeCSharp.
@@ -60,12 +62,16 @@ public class AplicacionPrincipal extends JFrame {
     private final PanelSintactico panelSintactico;
     private final PanelSemantico panelSemantico;
     private final PanelCodigoIntermedio panelCodigoIntermedio;
+    private final PanelOptimizacion panelOptimizacion;
     private final PanelResumen panelResumen;
     private JTabbedPane pestanas;
 
     // ── Estado de errores ──
     private List<ErrorLexico> ultimosErroresLexicos = new ArrayList<>();
     private List<ErrorSintactico> ultimosErroresSintacticos = new ArrayList<>();
+
+    /** Nombre del archivo abierto/guardado (para sugerir el nombre del codigo optimizado). */
+    private String nombreArchivoActual;
 
     // ── Botones del toolbar ──
     private JButton btnAnalizar;
@@ -101,6 +107,16 @@ public class AplicacionPrincipal extends JFrame {
         panelSintactico = new PanelSintactico((linea, columna) -> editor.irAUbicacion(linea, columna));
         panelSemantico = new PanelSemantico();
         panelCodigoIntermedio = new PanelCodigoIntermedio((linea, columna) -> editor.irAUbicacion(linea, columna));
+        panelOptimizacion = new PanelOptimizacion(
+                (linea, columna) -> editor.irAUbicacion(linea, columna),
+                codigoOptimizado -> {
+                    editor.setCodigo(codigoOptimizado);
+                    limpiarResultados();
+                    JOptionPane.showMessageDialog(this,
+                            "El editor ahora contiene el código optimizado.\nPresiona Analizar para volver a compilarlo.",
+                            "Código reemplazado", JOptionPane.INFORMATION_MESSAGE);
+                },
+                () -> nombreArchivoActual);
         panelResumen = new PanelResumen();
 
         // ── Ensamblar layout ──
@@ -242,6 +258,7 @@ public class AplicacionPrincipal extends JFrame {
         pestanas.addTab("Sintáctico", panelSintactico);
         pestanas.addTab("Semántico", panelSemantico);
         pestanas.addTab("Código Intermedio", panelCodigoIntermedio);
+        pestanas.addTab("Optimización", panelOptimizacion);
 
         // Split pane
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, editor, pestanas);
@@ -338,9 +355,25 @@ public class AplicacionPrincipal extends JFrame {
                 panelSemantico.cargarErrores(erroresSem);
                 panelErrores.cargarErroresSemanticos(erroresSem);
                 
-                // 5b. Código Intermedio (Polaca y Cuádruplos)
+                // 5b. Optimización (Eliminación de Código Muerto)
+                int totalErrores = erroresLex.size() + erroresSint.size() + erroresSem.size();
+                NodoPrograma astParaIntermedio = ast;
+
+                if (totalErrores == 0) {
+                    OptimizadorFuente optFuente = OptimizadorFuente.crearPorDefecto();
+                    ResultadoOptimizacionFuente resOpt = optFuente.optimizar(codigo);
+                    panelOptimizacion.cargar(resOpt);
+
+                    if (resOpt.astLimpio() != null) {
+                        astParaIntermedio = resOpt.astLimpio();
+                    }
+                } else {
+                    panelOptimizacion.mostrarOmitida("Optimización omitida debido a " + totalErrores + " error(es)", codigo);
+                }
+
+                // 5c. Código Intermedio (Polaca y Cuádruplos)
                 GeneradorCodigoIntermedio generadorIntermedio = new GeneradorCodigoIntermedio();
-                ProgramaIntermedio intermedio = generadorIntermedio.generar(ast);
+                ProgramaIntermedio intermedio = generadorIntermedio.generar(astParaIntermedio);
                 panelCodigoIntermedio.cargar(intermedio);
 
                 // 6. Actualizar resumen
@@ -354,6 +387,7 @@ public class AplicacionPrincipal extends JFrame {
                 panelSintactico.mostrarAST("(No se pudo generar el AST debido a errores de sintaxis)");
                 panelSemantico.limpiar();
                 panelCodigoIntermedio.limpiar();
+                panelOptimizacion.limpiar();
                 
                 // 6. Actualizar resumen
                 panelResumen.actualizar(
@@ -543,6 +577,7 @@ public class AplicacionPrincipal extends JFrame {
         panelSintactico.limpiar();
         panelSemantico.limpiar();
         panelCodigoIntermedio.limpiar();
+        panelOptimizacion.limpiar();
         panelResumen.limpiar();
     }
 
@@ -561,6 +596,7 @@ public class AplicacionPrincipal extends JFrame {
                         StandardCharsets.UTF_8);
                 editor.setCodigo(contenido);
                 limpiarResultados();
+                nombreArchivoActual = archivo.getName();
                 setTitle("Compilador LenguajeCSharp — " + archivo.getName());
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this,
@@ -580,6 +616,7 @@ public class AplicacionPrincipal extends JFrame {
                 java.nio.file.Files.write(archivo.toPath(), editor.getCodigo().getBytes(StandardCharsets.UTF_8));
                 JOptionPane.showMessageDialog(this, "Archivo guardado exitosamente.", "Guardar",
                         JOptionPane.INFORMATION_MESSAGE);
+                nombreArchivoActual = archivo.getName();
                 setTitle("Compilador LenguajeCSharp — " + archivo.getName());
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this, "Error al guardar el archivo: " + ex.getMessage(), "Error",
