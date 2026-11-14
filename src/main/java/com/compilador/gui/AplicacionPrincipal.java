@@ -69,6 +69,8 @@ public class AplicacionPrincipal extends JFrame {
     // -- Marco de la ventana y bienvenida --
     private BarraTitulo barraTitulo;
     private JPanel toolbarPanel;
+    private ZonaCentralIde zonaCentral;
+    private ResumenColapsable resumenColapsable;
     private JPanel panelCentro;
     private final java.awt.CardLayout cardLayout = new java.awt.CardLayout();
     private PantallaBienvenida bienvenida;
@@ -150,7 +152,14 @@ public class AplicacionPrincipal extends JFrame {
 
         add(norte, BorderLayout.NORTH);
         add(panelCentro, BorderLayout.CENTER);
-        add(panelResumen, BorderLayout.SOUTH);
+        resumenColapsable = new ResumenColapsable(panelResumen);
+        add(resumenColapsable, BorderLayout.SOUTH);
+        panelResumen.setAlCambiar(() -> {
+            resumenColapsable.actualizarIndicador();
+            zonaCentral.setConteoErrores(panelResumen.totalErrores());
+        });
+        instalarAtajo(java.awt.event.KeyEvent.VK_J, () -> resumenColapsable.alternar());
+        instalarAtajo(java.awt.event.KeyEvent.VK_B, () -> zonaCentral.alternar());
         BarraTitulo.instalarRedimension(this, barraTitulo);
 
         // ── Cargar ejemplo inicial ──
@@ -180,14 +189,27 @@ public class AplicacionPrincipal extends JFrame {
     private void mostrarBienvenida() {
         bienvenida.actualizarRecientes();
         toolbarPanel.setVisible(false);
-        panelResumen.setVisible(false);
+        resumenColapsable.setVisible(false);
         cardLayout.show(panelCentro, "bienvenida");
     }
 
     private void mostrarIde() {
         toolbarPanel.setVisible(true);
-        panelResumen.setVisible(true);
+        resumenColapsable.setVisible(true);
         cardLayout.show(panelCentro, "ide");
+    }
+
+    /** Atajo Ctrl+tecla que funciona en toda la ventana (como en un IDE). */
+    private void instalarAtajo(int tecla, Runnable accion) {
+        javax.swing.KeyStroke ks = javax.swing.KeyStroke.getKeyStroke(tecla, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        String nombre = "atajo-" + tecla;
+        getRootPane().getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW).put(ks, nombre);
+        getRootPane().getActionMap().put(nombre, new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                accion.run();
+            }
+        });
     }
 
     private void nuevoArchivo() {
@@ -322,7 +344,7 @@ public class AplicacionPrincipal extends JFrame {
     // CONTENIDO PRINCIPAL (editor + pestañas)
     // ════════════════════════════════════════════════════════════════
 
-    private JSplitPane crearContenidoPrincipal() {
+    private javax.swing.JComponent crearContenidoPrincipal() {
         // Panel de pestañas (lado derecho)
         pestanas = new JTabbedPane(JTabbedPane.TOP);
         pestanas.setFont(Colores.FUENTE_NORMAL);
@@ -344,7 +366,8 @@ public class AplicacionPrincipal extends JFrame {
         split.setBackground(Colores.FONDO_PRINCIPAL);
         split.setBorder(BorderFactory.createEmptyBorder());
 
-        return split;
+        zonaCentral = new ZonaCentralIde(editor, split, pestanas);
+        return zonaCentral;
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -482,7 +505,7 @@ public class AplicacionPrincipal extends JFrame {
 
             // 7. Ir a la pestaña más relevante
             if (!erroresLex.isEmpty() || !erroresSint.isEmpty()) {
-                pestanas.setSelectedIndex(0); // Errores
+                zonaCentral.mostrarPestana(0); // Errores (expande el panel si estaba contraido)
             }
 
         } catch (TokenMgrError ex) {

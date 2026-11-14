@@ -55,6 +55,38 @@ final class PreferenciasApp {
         return lista;
     }
 
+    static boolean analisisColapsado() {
+        return leerBooleano("analisisColapsado");
+    }
+
+    static void setAnalisisColapsado(boolean valor) {
+        escribirBooleano("analisisColapsado", valor);
+    }
+
+    static boolean resumenColapsado() {
+        return leerBooleano("resumenColapsado");
+    }
+
+    static void setResumenColapsado(boolean valor) {
+        escribirBooleano("resumenColapsado", valor);
+    }
+
+    private static boolean leerBooleano(String clave) {
+        try {
+            return nodo().getBoolean(clave, false);
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    private static void escribirBooleano(String clave, boolean valor) {
+        try {
+            nodo().putBoolean(clave, valor);
+        } catch (RuntimeException ignorada) {
+            // sin persistencia disponible: se ignora
+        }
+    }
+
     static void agregarReciente(File archivo) {
         if (archivo == null) return;
         try {

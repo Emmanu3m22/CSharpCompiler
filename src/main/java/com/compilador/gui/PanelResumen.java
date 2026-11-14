@@ -17,6 +17,14 @@ public class PanelResumen extends JPanel {
     private final JLabel labelEstado;
     private final JPanel barraEstado;
 
+    // Ultimo analisis (para el resumen corto cuando el panel esta contraido)
+    private boolean analizado = false;
+    private int ultTokens;
+    private int ultErrLex;
+    private int ultErrSint;
+    private int ultErrSem;
+    private Runnable alCambiar;
+
     public PanelResumen() {
         setLayout(new BorderLayout(0, 8));
         setBackground(Colores.FONDO_PANEL);
@@ -63,6 +71,16 @@ public class PanelResumen extends JPanel {
      * Actualiza todas las métricas del resumen.
      */
     public void actualizar(int tokens, int errLex, int errSint, int errSem) {
+        analizado = true;
+        ultTokens = tokens;
+        ultErrLex = errLex;
+        ultErrSint = errSint;
+        ultErrSem = errSem;
+        actualizarVista(tokens, errLex, errSint, errSem);
+        if (alCambiar != null) alCambiar.run();
+    }
+
+    private void actualizarVista(int tokens, int errLex, int errSint, int errSem) {
         labelTokens.setText(formatearMetrica("Tokens:", tokens, Colores.ACENTO_LEXICO));
         labelErrLex.setText(formatearMetrica("Errores Léxicos:", errLex,
                 errLex > 0 ? Colores.ERROR : Colores.ACENTO_LEXICO));
@@ -93,6 +111,13 @@ public class PanelResumen extends JPanel {
      * Restaura el panel a su estado inicial.
      */
     public void limpiar() {
+        analizado = false;
+        ultTokens = ultErrLex = ultErrSint = ultErrSem = 0;
+        limpiarVista();
+        if (alCambiar != null) alCambiar.run();
+    }
+
+    private void limpiarVista() {
         labelTokens.setText(formatearMetrica("Tokens:", 0, Colores.ACENTO_LEXICO));
         labelErrLex.setText(formatearMetrica("Errores Léxicos:", 0, Colores.ACENTO_LEXICO));
         labelErrSint.setText(formatearMetrica("Errores Sintácticos:", 0, Colores.ACENTO_SINTACTICO));
@@ -103,6 +128,31 @@ public class PanelResumen extends JPanel {
             BorderFactory.createMatteBorder(1, 0, 0, 0, Colores.BORDE),
             BorderFactory.createEmptyBorder(6, 8, 6, 8)
         ));
+    }
+
+    // ── Resumen corto (para la barra contraible) ──
+
+    /** Se invoca cada vez que cambian los datos del resumen. */
+    public void setAlCambiar(Runnable alCambiar) {
+        this.alCambiar = alCambiar;
+    }
+
+    public int totalErrores() {
+        return ultErrLex + ultErrSint + ultErrSem;
+    }
+
+    /** Resumen de una línea: tokens, errores por fase y estado general. */
+    public String textoCorto() {
+        if (!analizado) return "Sin análisis";
+        String base = ultTokens + " tokens · " + ultErrLex + " léxicos · "
+                + ultErrSint + " sintácticos · " + ultErrSem + " semánticos";
+        int total = totalErrores();
+        return base + "   " + (total == 0 ? "✓ sin errores" : "✗ " + total + (total == 1 ? " error" : " errores"));
+    }
+
+    public Color colorEstado() {
+        if (!analizado) return Colores.TEXTO_TENUE;
+        return totalErrores() == 0 ? Colores.EXITO : Colores.ERROR;
     }
 
     // ── Helpers ──
