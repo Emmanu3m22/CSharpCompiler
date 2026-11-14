@@ -66,6 +66,13 @@ public class AplicacionPrincipal extends JFrame {
     private final PanelResumen panelResumen;
     private JTabbedPane pestanas;
 
+    // -- Marco de la ventana y bienvenida --
+    private BarraTitulo barraTitulo;
+    private JPanel toolbarPanel;
+    private JPanel panelCentro;
+    private final java.awt.CardLayout cardLayout = new java.awt.CardLayout();
+    private PantallaBienvenida bienvenida;
+
     // ── Estado de errores ──
     private List<ErrorLexico> ultimosErroresLexicos = new ArrayList<>();
     private List<ErrorSintactico> ultimosErroresSintacticos = new ArrayList<>();
@@ -92,6 +99,7 @@ public class AplicacionPrincipal extends JFrame {
 
     public AplicacionPrincipal() {
         super("Compilador LenguajeCSharp v1.0");
+        setUndecorated(true);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1200, 750);
         setMinimumSize(new Dimension(900, 550));
@@ -121,14 +129,81 @@ public class AplicacionPrincipal extends JFrame {
 
         // ── Ensamblar layout ──
         setLayout(new BorderLayout(0, 0));
-        add(crearToolbar(), BorderLayout.NORTH);
-        add(crearContenidoPrincipal(), BorderLayout.CENTER);
+
+        barraTitulo = new BarraTitulo(this, "Compilador LenguajeCSharp v1.0");
+        toolbarPanel = crearToolbar();
+        JPanel norte = new JPanel(new BorderLayout());
+        norte.setOpaque(false);
+        norte.add(barraTitulo, BorderLayout.NORTH);
+        norte.add(toolbarPanel, BorderLayout.SOUTH);
+
+        bienvenida = new PantallaBienvenida(
+                this::nuevoArchivo,
+                this::abrirArchivo,
+                this::abrirEjemplo,
+                this::cargarArchivo,
+                this::mostrarIde);
+
+        panelCentro = new JPanel(cardLayout);
+        panelCentro.add(crearContenidoPrincipal(), "ide");
+        panelCentro.add(bienvenida, "bienvenida");
+
+        add(norte, BorderLayout.NORTH);
+        add(panelCentro, BorderLayout.CENTER);
         add(panelResumen, BorderLayout.SOUTH);
+        BarraTitulo.instalarRedimension(this, barraTitulo);
 
         // ── Cargar ejemplo inicial ──
         if (Ejemplos.cantidad() > 0) {
             editor.setCodigo(Ejemplos.getCodigo(0));
         }
+
+        if (PreferenciasApp.mostrarBienvenida()) {
+            mostrarBienvenida();
+        } else {
+            mostrarIde();
+        }
+    }
+
+    @Override
+    public void setTitle(String titulo) {
+        super.setTitle(titulo);
+        if (barraTitulo != null) {
+            barraTitulo.setTitulo(titulo);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // BIENVENIDA
+    // ════════════════════════════════════════════════════════════════
+
+    private void mostrarBienvenida() {
+        bienvenida.actualizarRecientes();
+        toolbarPanel.setVisible(false);
+        panelResumen.setVisible(false);
+        cardLayout.show(panelCentro, "bienvenida");
+    }
+
+    private void mostrarIde() {
+        toolbarPanel.setVisible(true);
+        panelResumen.setVisible(true);
+        cardLayout.show(panelCentro, "ide");
+    }
+
+    private void nuevoArchivo() {
+        editor.setCodigo("");
+        limpiarResultados();
+        nombreArchivoActual = null;
+        setTitle("Compilador LenguajeCSharp");
+        mostrarIde();
+    }
+
+    private void abrirEjemplo(int indice) {
+        editor.setCodigo(Ejemplos.getCodigo(indice));
+        limpiarResultados();
+        nombreArchivoActual = null;
+        setTitle("Compilador LenguajeCSharp");
+        mostrarIde();
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -152,6 +227,8 @@ public class AplicacionPrincipal extends JFrame {
         // Botón Limpiar
         btnLimpiar = crearBoton("✕ Limpiar", Colores.TEXTO_TENUE, e -> limpiarTodo());
         toolbar.add(btnLimpiar);
+        toolbar.add(Box.createHorizontalStrut(8));
+        toolbar.add(crearBoton("Inicio", Colores.TEXTO_TENUE, e -> mostrarBienvenida()));
         toolbar.add(Box.createHorizontalStrut(8));
 
         // Separador visual
@@ -589,20 +666,26 @@ public class AplicacionPrincipal extends JFrame {
 
         int result = chooser.showOpenDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
-            File archivo = chooser.getSelectedFile();
-            try {
-                String contenido = new String(
-                        java.nio.file.Files.readAllBytes(archivo.toPath()),
-                        StandardCharsets.UTF_8);
-                editor.setCodigo(contenido);
-                limpiarResultados();
-                nombreArchivoActual = archivo.getName();
-                setTitle("Compilador LenguajeCSharp — " + archivo.getName());
-            } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this,
-                        "No se pudo leer el archivo: " + ex.getMessage(),
-                        "Error", JOptionPane.ERROR_MESSAGE);
-            }
+            cargarArchivo(chooser.getSelectedFile());
+        }
+    }
+
+    /** Lee un archivo en el editor, lo registra como reciente y entra al IDE. */
+    private void cargarArchivo(File archivo) {
+        try {
+            String contenido = new String(
+                    java.nio.file.Files.readAllBytes(archivo.toPath()),
+                    StandardCharsets.UTF_8);
+            editor.setCodigo(contenido);
+            limpiarResultados();
+            nombreArchivoActual = archivo.getName();
+            PreferenciasApp.agregarReciente(archivo);
+            setTitle("Compilador LenguajeCSharp — " + archivo.getName());
+            mostrarIde();
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "No se pudo leer el archivo: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -617,6 +700,7 @@ public class AplicacionPrincipal extends JFrame {
                 JOptionPane.showMessageDialog(this, "Archivo guardado exitosamente.", "Guardar",
                         JOptionPane.INFORMATION_MESSAGE);
                 nombreArchivoActual = archivo.getName();
+                PreferenciasApp.agregarReciente(archivo);
                 setTitle("Compilador LenguajeCSharp — " + archivo.getName());
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this, "Error al guardar el archivo: " + ex.getMessage(), "Error",
