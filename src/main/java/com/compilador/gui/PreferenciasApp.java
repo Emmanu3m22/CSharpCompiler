@@ -6,8 +6,9 @@ import java.util.List;
 import java.util.prefs.Preferences;
 
 /**
- * Preferencias persistentes de la aplicación (registro de Windows / archivo de usuario):
- * si se muestra la bienvenida al iniciar y la lista de archivos recientes.
+ * Preferencias persistentes de la aplicación (registro de Windows / archivo de usuario)
+ * con respaldo en memoria para entornos con permisos restringidos:
+ * controla si se muestra la bienvenida al iniciar, el estado de los paneles y los archivos recientes.
  */
 final class PreferenciasApp {
 
@@ -16,6 +17,11 @@ final class PreferenciasApp {
     private static final String CLAVE_RECIENTES = "recientes";
     private static final String SEPARADOR = "|"; // carácter no válido en rutas de Windows
 
+    private static Boolean memoriaBienvenida;
+    private static Boolean memoriaAnalisisColapsado;
+    private static Boolean memoriaResumenColapsado;
+    private static List<String> memoriaRecientes;
+
     private PreferenciasApp() {}
 
     private static Preferences nodo() {
@@ -23,6 +29,9 @@ final class PreferenciasApp {
     }
 
     static boolean mostrarBienvenida() {
+        if (memoriaBienvenida != null) {
+            return memoriaBienvenida;
+        }
         try {
             return nodo().getBoolean(CLAVE_BIENVENIDA, true);
         } catch (RuntimeException e) {
@@ -31,43 +40,65 @@ final class PreferenciasApp {
     }
 
     static void setMostrarBienvenida(boolean mostrar) {
+        memoriaBienvenida = mostrar;
         try {
             nodo().putBoolean(CLAVE_BIENVENIDA, mostrar);
         } catch (RuntimeException ignorada) {
-            // sin persistencia disponible: se ignora
+            // sin persistencia disponible: se conserva en memoria
         }
     }
 
     /** Archivos recientes que todavía existen, del más nuevo al más antiguo. */
     static List<File> recientes() {
         List<File> lista = new ArrayList<>();
+        String guardado = "";
         try {
-            String guardado = nodo().get(CLAVE_RECIENTES, "");
-            for (String ruta : guardado.split("\\" + SEPARADOR)) {
-                if (!ruta.isBlank()) {
-                    File f = new File(ruta);
-                    if (f.isFile()) lista.add(f);
-                }
-            }
+            guardado = nodo().get(CLAVE_RECIENTES, "");
         } catch (RuntimeException ignorada) {
             // sin persistencia disponible
+        }
+
+        List<String> candidatos = new ArrayList<>();
+        if (memoriaRecientes != null && !memoriaRecientes.isEmpty()) {
+            candidatos.addAll(memoriaRecientes);
+        } else if (!guardado.isBlank()) {
+            for (String ruta : guardado.split("\\" + SEPARADOR)) {
+                if (!ruta.isBlank()) {
+                    candidatos.add(ruta);
+                }
+            }
+        }
+
+        for (String ruta : candidatos) {
+            File f = new File(ruta);
+            if (f.isFile()) {
+                lista.add(f);
+            }
         }
         return lista;
     }
 
     static boolean analisisColapsado() {
+        if (memoriaAnalisisColapsado != null) {
+            return memoriaAnalisisColapsado;
+        }
         return leerBooleano("analisisColapsado");
     }
 
     static void setAnalisisColapsado(boolean valor) {
+        memoriaAnalisisColapsado = valor;
         escribirBooleano("analisisColapsado", valor);
     }
 
     static boolean resumenColapsado() {
+        if (memoriaResumenColapsado != null) {
+            return memoriaResumenColapsado;
+        }
         return leerBooleano("resumenColapsado");
     }
 
     static void setResumenColapsado(boolean valor) {
+        memoriaResumenColapsado = valor;
         escribirBooleano("resumenColapsado", valor);
     }
 
@@ -89,20 +120,21 @@ final class PreferenciasApp {
 
     static void agregarReciente(File archivo) {
         if (archivo == null) return;
+        List<String> rutas = new ArrayList<>();
+        rutas.add(archivo.getAbsolutePath());
+        for (File f : recientes()) {
+            if (!f.getAbsolutePath().equals(archivo.getAbsolutePath())) {
+                rutas.add(f.getAbsolutePath());
+            }
+        }
+        if (rutas.size() > MAX_RECIENTES) {
+            rutas = new ArrayList<>(rutas.subList(0, MAX_RECIENTES));
+        }
+        memoriaRecientes = rutas;
         try {
-            List<String> rutas = new ArrayList<>();
-            rutas.add(archivo.getAbsolutePath());
-            for (File f : recientes()) {
-                if (!f.getAbsolutePath().equals(archivo.getAbsolutePath())) {
-                    rutas.add(f.getAbsolutePath());
-                }
-            }
-            if (rutas.size() > MAX_RECIENTES) {
-                rutas = rutas.subList(0, MAX_RECIENTES);
-            }
             nodo().put(CLAVE_RECIENTES, String.join(SEPARADOR, rutas));
         } catch (RuntimeException ignorada) {
-            // sin persistencia disponible
+            // sin persistencia disponible: se conserva en memoria
         }
     }
 }
