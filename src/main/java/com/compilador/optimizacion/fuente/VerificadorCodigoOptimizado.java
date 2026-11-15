@@ -9,8 +9,6 @@ import com.compilador.optimizacion.fuente.VerificacionOptimizado.ErrorVerificaci
 import com.compilador.semantic.AnalizadorSemantico;
 import com.compilador.semantic.ErrorSemantico;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,7 +29,7 @@ public final class VerificadorCodigoOptimizado {
         NodoPrograma ast = null;
         Analizador parser = null;
         try {
-            parser = new Analizador(new ByteArrayInputStream(codigo.getBytes(StandardCharsets.UTF_8)));
+            parser = CodigoFuente.crearParser(codigo);
             ast = parser.programa();
         } catch (Throwable e) {
             errores.add(new ErrorVerificacion("Sintáctico", 0, 0,

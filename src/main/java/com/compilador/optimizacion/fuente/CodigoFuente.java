@@ -1,5 +1,6 @@
 package com.compilador.optimizacion.fuente;
 
+import com.compilador.Analizador;
 import com.compilador.AnalizadorConstants;
 import com.compilador.AnalizadorTokenManager;
 import com.compilador.SimpleCharStream;
@@ -520,6 +521,60 @@ public class CodigoFuente {
         }
 
         return sb.toString();
+    }
+
+    /**
+     * Crea una instancia de {@link Analizador} configurada con {@link StringReader}
+     * y {@code tabSize = 1} para garantizar que las líneas y columnas del AST
+     * coincidan exactamente con las de {@link CodigoFuente} sin depender del charset del sistema.
+     */
+    public static Analizador crearParser(String codigo) {
+        String s = codigo != null ? codigo : "";
+        SimpleCharStream scs = new SimpleCharStream(new StringReader(s), 1, 1);
+        scs.setTabSize(1);
+        AnalizadorTokenManager tm = new AnalizadorTokenManager(scs);
+        return new Analizador(tm);
+    }
+
+    /**
+     * Reconstruye la versión limpia y legible de un código enmascarado:
+     * omite toda línea que tenía código en {@code codigoOriginal} y quedó
+     * completamente en blanco tras el enmascaramiento de uno o varios pases,
+     * elimina comentarios y colapsa líneas vacías excesivas.
+     */
+    public static String colapsarEnmascarado(String codigoOriginal, String codigoEnmascarado) {
+        if (codigoEnmascarado == null || codigoEnmascarado.trim().isEmpty()) {
+            return "";
+        }
+
+        String base;
+        if (codigoOriginal != null) {
+            String[] lineasOrig = codigoOriginal.split("\r?\n", -1);
+            String[] lineasEnm = codigoEnmascarado.split("\r?\n", -1);
+            if (lineasOrig.length == lineasEnm.length) {
+                String separador = codigoEnmascarado.contains("\r\n") ? "\r\n" : "\n";
+                StringBuilder sb = new StringBuilder(codigoEnmascarado.length());
+                boolean primero = true;
+                for (int i = 0; i < lineasEnm.length; i++) {
+                    if (!lineasOrig[i].isBlank() && lineasEnm[i].isBlank()) {
+                        // Línea eliminada por algún pase de optimización (enmascarada con espacios)
+                        continue;
+                    }
+                    if (!primero) {
+                        sb.append(separador);
+                    }
+                    sb.append(lineasEnm[i].isBlank() ? "" : lineasEnm[i]);
+                    primero = false;
+                }
+                base = sb.toString();
+            } else {
+                base = codigoEnmascarado;
+            }
+        } else {
+            base = codigoEnmascarado;
+        }
+
+        return limpiarLineasVaciasExcessivas(quitarComentarios(base));
     }
 
     public static String limpiarLineasVaciasExcessivas(String s) {

@@ -7,7 +7,6 @@ import java.awt.Dimension;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +43,7 @@ import com.compilador.semantic.AnalizadorSemantico;
 import com.compilador.semantic.ErrorSemantico;
 import com.compilador.intermedio.GeneradorCodigoIntermedio;
 import com.compilador.intermedio.ProgramaIntermedio;
+import com.compilador.optimizacion.fuente.CodigoFuente;
 import com.compilador.optimizacion.fuente.OptimizadorFuente;
 import com.compilador.optimizacion.fuente.ResultadoOptimizacionFuente;
 
@@ -403,9 +403,7 @@ public class AplicacionPrincipal extends JFrame {
 
         try {
             // 1. Crear el parser con el código del editor
-            ByteArrayInputStream bais = new ByteArrayInputStream(
-                    codigo.getBytes(StandardCharsets.UTF_8));
-            Analizador parser = new Analizador(bais);
+            Analizador parser = CodigoFuente.crearParser(codigo);
 
             // 2. Ejecutar análisis léxico + sintáctico → AST
             NodoPrograma ast = null;
@@ -541,9 +539,7 @@ public class AplicacionPrincipal extends JFrame {
         List<String[]> tokens = new ArrayList<>();
         List<ErrorLexico> erroresLex = new ArrayList<>();
         try {
-            ByteArrayInputStream bais = new ByteArrayInputStream(
-                    codigo.getBytes(StandardCharsets.UTF_8));
-            Analizador tokenizer = new Analizador(bais);
+            Analizador tokenizer = CodigoFuente.crearParser(codigo);
 
             com.compilador.Token t;
             while (true) {

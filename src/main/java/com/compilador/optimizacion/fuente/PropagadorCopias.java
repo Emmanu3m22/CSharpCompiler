@@ -1,7 +1,5 @@
 package com.compilador.optimizacion.fuente;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -124,13 +122,15 @@ public class PropagadorCopias implements PaseOptimizacionFuente {
         }
 
         if (hallazgos.isEmpty()) {
-            return EtapaOptimizacion.sinCambios(
-                    nombre(), descripcion(), fuente.getTexto(), System.nanoTime() - inicio);
+            String limpio = CodigoFuente.colapsarEnmascarado(fuente.getTexto(), fuente.getTexto());
+            return new EtapaOptimizacion(
+                    nombre(), descripcion(),
+                    fuente.getTexto(), limpio, fuente.getTexto(),
+                    List.of(), List.of(), System.nanoTime() - inicio);
         }
 
         String transformado = aplicarEdiciones(fuente.getTexto(), reemplazos, eliminaciones);
-        String codigoDespues = CodigoFuente.limpiarLineasVaciasExcessivas(
-                CodigoFuente.quitarComentarios(transformado));
+        String codigoDespues = CodigoFuente.colapsarEnmascarado(fuente.getTexto(), transformado);
         long duracion = System.nanoTime() - inicio;
         return new EtapaOptimizacion(
                 nombre(),
@@ -145,10 +145,9 @@ public class PropagadorCopias implements PaseOptimizacionFuente {
 
     private static NodoPrograma parsear(String codigo) {
         try {
-            Analizador parser = new Analizador(
-                    new ByteArrayInputStream(codigo.getBytes(StandardCharsets.UTF_8)));
+            Analizador parser = CodigoFuente.crearParser(codigo);
             return parser.programa();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return null;
         }
     }
@@ -468,7 +467,7 @@ public class PropagadorCopias implements PaseOptimizacionFuente {
     ) {
         List<Reemplazo> ediciones = new ArrayList<>(reemplazos);
         for (RangoTexto eliminacion : eliminaciones) {
-            ediciones.add(new Reemplazo(eliminacion, ""));
+            ediciones.add(new Reemplazo(eliminacion, enmascararSegmento(codigo, eliminacion)));
         }
         ediciones.sort(Comparator.comparingInt(edicion -> edicion.rango().inicio()));
 
@@ -483,6 +482,17 @@ public class PropagadorCopias implements PaseOptimizacionFuente {
         }
         resultado.append(codigo, cursor, codigo.length());
         return resultado.toString();
+    }
+
+    private static String enmascararSegmento(String codigo, RangoTexto rango) {
+        int ini = Math.max(0, Math.min(rango.inicio(), codigo.length()));
+        int fin = Math.max(ini, Math.min(rango.fin(), codigo.length()));
+        StringBuilder sb = new StringBuilder(fin - ini);
+        for (int i = ini; i < fin; i++) {
+            char c = codigo.charAt(i);
+            sb.append((c == '\r' || c == '\n') ? c : ' ');
+        }
+        return sb.toString();
     }
 
 }

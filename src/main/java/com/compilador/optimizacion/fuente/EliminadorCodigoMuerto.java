@@ -3,8 +3,6 @@ package com.compilador.optimizacion.fuente;
 import com.compilador.Analizador;
 import com.compilador.ast.NodoPrograma;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -78,7 +76,7 @@ public class EliminadorCodigoMuerto implements PaseOptimizacionFuente {
 
     private static NodoPrograma parsear(String codigo) {
         try {
-            Analizador parser = new Analizador(new ByteArrayInputStream(codigo.getBytes(StandardCharsets.UTF_8)));
+            Analizador parser = CodigoFuente.crearParser(codigo);
             return parser.programa();
         } catch (Throwable e) {
             return null;

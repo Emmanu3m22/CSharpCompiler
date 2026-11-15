@@ -3,8 +3,6 @@ package com.compilador.optimizacion.fuente;
 import com.compilador.Analizador;
 import com.compilador.ast.NodoPrograma;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -107,11 +105,21 @@ public class OptimizadorFuente {
                 // En rondas adicionales solo interesan las etapas que cambian algo
                 if (ronda > 1 && !etapa.hayCambios()) continue;
 
+                // Si un pase reportó cambios alterando solo codigoDespues (sin tocar la máscara),
+                // respetamos su codigoDespues explícito; en el caso normal reconstruimos el código
+                // limpio acumulado colapsando desde codigoOriginal todas las líneas ya enmascaradas.
+                String nuevoDespues;
+                if (etapa.hayCambios() && etapa.codigoEnmascarado().equals(actualEnmascarado)) {
+                    nuevoDespues = etapa.codigoDespues();
+                } else {
+                    nuevoDespues = CodigoFuente.colapsarEnmascarado(codigoOriginal, etapa.codigoEnmascarado());
+                }
+
                 EtapaOptimizacion etapaAjustada = new EtapaOptimizacion(
                         etapa.nombre(),
                         etapa.descripcion(),
                         actualDespues,
-                        etapa.hayCambios() ? etapa.codigoDespues() : actualDespues,
+                        nuevoDespues,
                         etapa.codigoEnmascarado(),
                         etapa.hallazgos(),
                         etapa.rangosEliminados(),
@@ -148,8 +156,7 @@ public class OptimizadorFuente {
         // Intentar parsear el código enmascarado final para generar el AST limpio
         NodoPrograma astLimpio = null;
         try {
-            ByteArrayInputStream bais = new ByteArrayInputStream(actualEnmascarado.getBytes(StandardCharsets.UTF_8));
-            Analizador parser = new Analizador(bais);
+            Analizador parser = CodigoFuente.crearParser(actualEnmascarado);
             astLimpio = parser.programa();
         } catch (Throwable e) {
             advertencias.add("No se pudo generar el AST limpio: " + e.getClass().getSimpleName());
