@@ -195,8 +195,10 @@ public class EditorCodigo extends JPanel {
         editor.requestFocusInWindow();
         editor.setCaretPosition(posicion);
         try {
-            Rectangle rectangulo = editor.modelToView2D(posicion).getBounds();
-            editor.scrollRectToVisible(rectangulo);
+            java.awt.geom.Rectangle2D vista = editor.modelToView2D(posicion);
+            if (vista != null) {
+                editor.scrollRectToVisible(vista.getBounds());
+            }
         } catch (BadLocationException ignored) {
             // La posición ya fue acotada al contenido actual del documento.
         }

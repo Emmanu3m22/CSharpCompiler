@@ -160,6 +160,12 @@ public class AplicacionPrincipal extends JFrame {
         });
         instalarAtajo(java.awt.event.KeyEvent.VK_J, () -> resumenColapsable.alternar());
         instalarAtajo(java.awt.event.KeyEvent.VK_B, () -> zonaCentral.alternar());
+        instalarAtajo(java.awt.event.KeyEvent.VK_F5, 0, () -> {
+            if (!toolbarPanel.isVisible()) {
+                mostrarIde();
+            }
+            ejecutarAnalisis();
+        });
         BarraTitulo.instalarRedimension(this, barraTitulo);
 
         // ── Cargar ejemplo inicial ──
@@ -201,8 +207,13 @@ public class AplicacionPrincipal extends JFrame {
 
     /** Atajo Ctrl+tecla que funciona en toda la ventana (como en un IDE). */
     private void instalarAtajo(int tecla, Runnable accion) {
-        javax.swing.KeyStroke ks = javax.swing.KeyStroke.getKeyStroke(tecla, java.awt.event.InputEvent.CTRL_DOWN_MASK);
-        String nombre = "atajo-" + tecla;
+        instalarAtajo(tecla, java.awt.event.InputEvent.CTRL_DOWN_MASK, accion);
+    }
+
+    /** Atajo global con modificadores arbitrarios (0 para teclas de función como F5). */
+    private void instalarAtajo(int tecla, int modificadores, Runnable accion) {
+        javax.swing.KeyStroke ks = javax.swing.KeyStroke.getKeyStroke(tecla, modificadores);
+        String nombre = "atajo-" + modificadores + "-" + tecla;
         getRootPane().getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW).put(ks, nombre);
         getRootPane().getActionMap().put(nombre, new javax.swing.AbstractAction() {
             @Override
@@ -243,6 +254,7 @@ public class AplicacionPrincipal extends JFrame {
 
         // Botón Analizar
         btnAnalizar = crearBoton("▶ Analizar", Colores.ACENTO_PRINCIPAL, e -> ejecutarAnalisis());
+        btnAnalizar.setToolTipText("Analizar código (F5)");
         toolbar.add(btnAnalizar);
         toolbar.add(Box.createHorizontalStrut(8));
 

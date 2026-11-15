@@ -12,22 +12,27 @@ import java.util.function.IntConsumer;
 
 /**
  * Pantalla de bienvenida con disposición lateral asimétrica estilo IDE moderno:
- * barra lateral izquierda con identidad, acciones primarias y preferencias,
- * y panel principal alineado a la izquierda con archivos recientes y plantillas.
+ * barra lateral izquierda con identidad multicolor por fase, acciones primarias
+ * con acento propio y preferencias; y panel principal alineado a la izquierda
+ * con archivos recientes y tarjetas de plantillas categorizadas por color.
  */
 public class PantallaBienvenida extends JPanel {
 
     private static final int ANCHO_LATERAL = 300;
     private static final int ANCHO_MAX_CONTENIDO = 780;
 
-    private static final String[] DESCRIPCIONES_EJEMPLOS = {
-        "Precedencia mixta, paréntesis anidados y generación de cuádruplos",
-        "Declaración de cadena e impresión básica por consola",
-        "Tipos numéricos, aritmética básica y salida estándar",
-        "Expresiones con booleanos, decimales y cadenas con formato",
-        "Casos con redeclaraciones y variables no declaradas para diagnóstico",
-        "Estructura mínima sin sentencias ejecutables",
-        "Pruebas de reglas R1-R4: código inalcanzable, condiciones constantes y variables sin uso"
+    private record ParBordes(Border normal, Border hover) {}
+
+    private record MetaEjemplo(String categoria, String descripcion, Color acento) {}
+
+    private static final MetaEjemplo[] METADATOS_EJEMPLOS = {
+        new MetaEjemplo("TAC", "Precedencia mixta, paréntesis anidados y generación de cuádruplos", Colores.ACENTO_INTERMEDIO),
+        new MetaEjemplo("Básico", "Declaración de cadena e impresión básica por consola", Colores.ACENTO_SINTACTICO),
+        new MetaEjemplo("Aritmética", "Tipos numéricos, aritmética básica y salida estándar", Colores.ACENTO_LEXICO),
+        new MetaEjemplo("Tipos", "Expresiones con booleanos, decimales y cadenas con formato", Colores.ACENTO_SEMANTICO),
+        new MetaEjemplo("Diagnóstico", "Casos con redeclaraciones y variables no declaradas para diagnóstico", Colores.ACENTO_CORAL),
+        new MetaEjemplo("Base", "Estructura mínima sin sentencias ejecutables", Colores.ACENTO_CYAN),
+        new MetaEjemplo("Optimización", "Pruebas R1-R4: código inalcanzable, condiciones constantes y variables sin uso", Colores.ACENTO_OPTIMIZACION)
     };
 
     private final Runnable alNuevo;
@@ -58,13 +63,13 @@ public class PantallaBienvenida extends JPanel {
     // ───────────────────────── Panel Lateral Izquierdo ─────────────────────────
 
     private JPanel crearPanelLateral() {
-        JPanel lateral = new JPanel(new BorderLayout(0, 20));
+        JPanel lateral = new JPanel(new BorderLayout(0, 18));
         lateral.setName("panel-lateral-bienvenida");
-        lateral.setBackground(Colores.FONDO_PANEL);
+        lateral.setBackground(Colores.FONDO_BIENVENIDA_LATERAL);
         lateral.setPreferredSize(new Dimension(ANCHO_LATERAL, 0));
         lateral.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 0, 1, Colores.BORDE),
-            BorderFactory.createEmptyBorder(32, 26, 24, 26)
+            BorderFactory.createEmptyBorder(28, 24, 22, 24)
         ));
 
         JPanel superior = new JPanel();
@@ -81,8 +86,8 @@ public class PantallaBienvenida extends JPanel {
         iconoMarca.setForeground(Colores.ACENTO_PRINCIPAL);
 
         JLabel insigniaVersion = new JLabel("  IDE · C#");
-        insigniaVersion.setFont(new Font("Consolas", Font.PLAIN, 11));
-        insigniaVersion.setForeground(Colores.TEXTO_LINEAS);
+        insigniaVersion.setFont(new Font("Consolas", Font.BOLD, 12));
+        insigniaVersion.setForeground(Colores.ACENTO_CYAN);
 
         filaMarca.add(iconoMarca);
         filaMarca.add(insigniaVersion);
@@ -92,28 +97,26 @@ public class PantallaBienvenida extends JPanel {
         titulo.setForeground(Colores.TEXTO_NORMAL);
         titulo.setAlignmentX(LEFT_ALIGNMENT);
 
-        JLabel subtitulo = new JLabel("Léxico · Sintáctico · Semántico · TAC · Optimización");
-        subtitulo.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        subtitulo.setForeground(Colores.TEXTO_TENUE);
-        subtitulo.setAlignmentX(LEFT_ALIGNMENT);
-
         superior.add(filaMarca);
-        superior.add(Box.createVerticalStrut(8));
+        superior.add(Box.createVerticalStrut(6));
         superior.add(titulo);
-        superior.add(Box.createVerticalStrut(4));
-        superior.add(subtitulo);
-        superior.add(Box.createVerticalStrut(16));
-        superior.add(lineaAcento());
-        superior.add(Box.createVerticalStrut(28));
+        superior.add(Box.createVerticalStrut(10));
+        superior.add(crearPildorasFases());
+        superior.add(Box.createVerticalStrut(12));
+        superior.add(lineaAcentoMulticolor());
+        superior.add(Box.createVerticalStrut(24));
 
         // ── Acciones principales ──
-        superior.add(encabezadoSeccion("Comenzar"));
+        superior.add(encabezadoSeccion("Comenzar", Colores.ACENTO_PRINCIPAL));
         superior.add(Box.createVerticalStrut(4));
-        superior.add(botonAccionLateral("+", "Nuevo archivo", "Crear código C# en blanco", "accion-nuevo", alNuevo));
+        superior.add(botonAccionLateral("+", "Nuevo archivo", "Crear código C# en blanco",
+                "accion-nuevo", Colores.ACENTO_SINTACTICO, alNuevo));
         superior.add(Box.createVerticalStrut(8));
-        superior.add(botonAccionLateral("↗", "Abrir archivo…", "Cargar archivo .cs o .txt", "accion-abrir", alAbrir));
+        superior.add(botonAccionLateral("↗", "Abrir archivo…", "Cargar archivo .cs o .txt",
+                "accion-abrir", Colores.ACENTO_INTERMEDIO, alAbrir));
         superior.add(Box.createVerticalStrut(8));
-        superior.add(botonAccionLateral("▸", "Ir al editor", "Continuar en el área de trabajo", "accion-continuar", alContinuar));
+        superior.add(botonAccionLateral("▸", "Ir al editor", "Continuar en el área de trabajo",
+                "accion-continuar", Colores.ACENTO_CYAN, alContinuar));
 
         lateral.add(superior, BorderLayout.NORTH);
 
@@ -122,10 +125,16 @@ public class PantallaBienvenida extends JPanel {
         pie.setOpaque(false);
         pie.setLayout(new BoxLayout(pie, BoxLayout.Y_AXIS));
 
-        JLabel atajos = new JLabel("F5 Analizar  ·  Ctrl+B Paneles  ·  Ctrl+J Resumen");
-        atajos.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        atajos.setForeground(Colores.TEXTO_LINEAS);
-        atajos.setAlignmentX(LEFT_ALIGNMENT);
+        JPanel filaAtajos1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        filaAtajos1.setOpaque(false);
+        filaAtajos1.setAlignmentX(LEFT_ALIGNMENT);
+        filaAtajos1.add(pildora("F5 · Analizar código", Colores.ACENTO_SINTACTICO));
+
+        JPanel filaAtajos2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        filaAtajos2.setOpaque(false);
+        filaAtajos2.setAlignmentX(LEFT_ALIGNMENT);
+        filaAtajos2.add(pildora("Ctrl+B Paneles", Colores.ACENTO_LEXICO));
+        filaAtajos2.add(pildora("Ctrl+J Resumen", Colores.ACENTO_SEMANTICO));
 
         JCheckBox chkMostrar = new JCheckBox("Mostrar bienvenida al iniciar");
         chkMostrar.setName("chk-mostrar-bienvenida");
@@ -138,12 +147,52 @@ public class PantallaBienvenida extends JPanel {
         chkMostrar.setSelected(PreferenciasApp.mostrarBienvenida());
         chkMostrar.addActionListener(e -> PreferenciasApp.setMostrarBienvenida(chkMostrar.isSelected()));
 
-        pie.add(atajos);
-        pie.add(Box.createVerticalStrut(10));
+        pie.add(filaAtajos1);
+        pie.add(Box.createVerticalStrut(5));
+        pie.add(filaAtajos2);
+        pie.add(Box.createVerticalStrut(12));
         pie.add(chkMostrar);
 
         lateral.add(pie, BorderLayout.SOUTH);
         return lateral;
+    }
+
+    private JPanel crearPildorasFases() {
+        JPanel contenedor = new JPanel();
+        contenedor.setOpaque(false);
+        contenedor.setLayout(new BoxLayout(contenedor, BoxLayout.Y_AXIS));
+        contenedor.setAlignmentX(LEFT_ALIGNMENT);
+
+        JPanel fila1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        fila1.setOpaque(false);
+        fila1.setAlignmentX(LEFT_ALIGNMENT);
+        fila1.add(pildora("Léxico", Colores.ACENTO_LEXICO));
+        fila1.add(pildora("Sintáctico", Colores.ACENTO_SINTACTICO));
+        fila1.add(pildora("Semántico", Colores.ACENTO_SEMANTICO));
+
+        JPanel fila2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        fila2.setOpaque(false);
+        fila2.setAlignmentX(LEFT_ALIGNMENT);
+        fila2.add(pildora("TAC", Colores.ACENTO_INTERMEDIO));
+        fila2.add(pildora("Optimización", Colores.ACENTO_OPTIMIZACION));
+
+        contenedor.add(fila1);
+        contenedor.add(Box.createVerticalStrut(5));
+        contenedor.add(fila2);
+        return contenedor;
+    }
+
+    private JLabel pildora(String texto, Color acento) {
+        JLabel l = new JLabel(texto);
+        l.setOpaque(true);
+        l.setBackground(Colores.FONDO_INSIGNIA);
+        l.setForeground(acento);
+        l.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        l.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Colores.BORDE, 1),
+            BorderFactory.createEmptyBorder(2, 7, 2, 7)
+        ));
+        return l;
     }
 
     // ───────────────────────── Panel Principal (Alineado a la Izquierda) ─────────────────────────
@@ -152,7 +201,7 @@ public class PantallaBienvenida extends JPanel {
         JPanel contenedor = new JPanel(new BorderLayout());
         contenedor.setName("panel-principal-bienvenida");
         contenedor.setBackground(Colores.FONDO_PRINCIPAL);
-        contenedor.setBorder(BorderFactory.createEmptyBorder(34, 44, 34, 44));
+        contenedor.setBorder(BorderFactory.createEmptyBorder(32, 44, 32, 44));
 
         JPanel columnaIzquierda = new JPanel();
         columnaIzquierda.setOpaque(false);
@@ -160,7 +209,7 @@ public class PantallaBienvenida extends JPanel {
         columnaIzquierda.setAlignmentX(LEFT_ALIGNMENT);
 
         // ── Sección: Archivos recientes ──
-        columnaIzquierda.add(encabezadoSeccion("Archivos recientes"));
+        columnaIzquierda.add(encabezadoSeccion("Archivos recientes", Colores.ACENTO_CYAN));
         columnaIzquierda.add(Box.createVerticalStrut(4));
 
         listaRecientes.setName("lista-recientes");
@@ -169,10 +218,10 @@ public class PantallaBienvenida extends JPanel {
         listaRecientes.setAlignmentX(LEFT_ALIGNMENT);
         columnaIzquierda.add(listaRecientes);
 
-        columnaIzquierda.add(Box.createVerticalStrut(28));
+        columnaIzquierda.add(Box.createVerticalStrut(26));
 
         // ── Sección: Plantillas y ejemplos ──
-        columnaIzquierda.add(encabezadoSeccion("Plantillas y ejemplos incluidos"));
+        columnaIzquierda.add(encabezadoSeccion("Plantillas y ejemplos incluidos", Colores.ACENTO_SEMANTICO));
         JLabel descEjemplos = new JLabel("Abre un caso de prueba preconfigurado directamente en el editor:");
         descEjemplos.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         descEjemplos.setForeground(Colores.TEXTO_TENUE);
@@ -184,13 +233,13 @@ public class PantallaBienvenida extends JPanel {
         rejillaEjemplos.setName("grid-ejemplos");
         rejillaEjemplos.setOpaque(false);
         rejillaEjemplos.setAlignmentX(LEFT_ALIGNMENT);
-        rejillaEjemplos.setMaximumSize(new Dimension(ANCHO_MAX_CONTENIDO, 340));
+        rejillaEjemplos.setMaximumSize(new Dimension(ANCHO_MAX_CONTENIDO, 400));
 
         for (int i = 0; i < Ejemplos.cantidad(); i++) {
-            final int idx = i;
-            String nombre = Ejemplos.getNombre(i);
-            String desc = i < DESCRIPCIONES_EJEMPLOS.length ? DESCRIPCIONES_EJEMPLOS[i] : "Ejemplo de código C#";
-            rejillaEjemplos.add(tarjetaEjemplo(idx, nombre, desc));
+            MetaEjemplo meta = i < METADATOS_EJEMPLOS.length
+                    ? METADATOS_EJEMPLOS[i]
+                    : new MetaEjemplo("Ejemplo", "Ejemplo de código C#", Colores.ACENTO_PRINCIPAL);
+            rejillaEjemplos.add(tarjetaEjemplo(i, Ejemplos.getNombre(i), meta));
         }
 
         columnaIzquierda.add(rejillaEjemplos);
@@ -211,13 +260,16 @@ public class PantallaBienvenida extends JPanel {
         if (recientes.isEmpty()) {
             JPanel estadoVacio = new JPanel(new BorderLayout());
             estadoVacio.setName("recientes-vacio");
-            estadoVacio.setBackground(Colores.FONDO_EDITOR);
+            estadoVacio.setBackground(Colores.FONDO_TARJETA);
             estadoVacio.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Colores.BORDE, 1),
-                BorderFactory.createEmptyBorder(10, 14, 10, 14)
+                BorderFactory.createMatteBorder(1, 0, 1, 1, Colores.BORDE),
+                BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0, 3, 0, 0, Colores.ACENTO_CYAN),
+                    BorderFactory.createEmptyBorder(10, 12, 10, 14)
+                )
             ));
             estadoVacio.setAlignmentX(LEFT_ALIGNMENT);
-            estadoVacio.setMaximumSize(new Dimension(ANCHO_MAX_CONTENIDO, 40));
+            estadoVacio.setMaximumSize(new Dimension(ANCHO_MAX_CONTENIDO, 42));
 
             JLabel vacio = new JLabel("Aún no hay archivos recientes. Usa «Abrir archivo…» o elige una plantilla.");
             vacio.setFont(Colores.FUENTE_PEQUENA.deriveFont(12f));
@@ -241,27 +293,21 @@ public class PantallaBienvenida extends JPanel {
     // ───────────────────────── Componentes Interactivos ─────────────────────────
 
     private JPanel botonAccionLateral(String simbolo, String titulo, String subtitulo,
-                                      String nombreComponente, Runnable accion) {
+                                      String nombreComponente, Color acento, Runnable accion) {
         JPanel tarjeta = new JPanel(new BorderLayout(12, 0));
         tarjeta.setName(nombreComponente);
-        tarjeta.setBackground(Colores.FONDO_EDITOR);
+        tarjeta.setBackground(Colores.FONDO_TARJETA);
         tarjeta.setAlignmentX(LEFT_ALIGNMENT);
-        tarjeta.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        tarjeta.setMaximumSize(new Dimension(Integer.MAX_VALUE, 52));
         tarjeta.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        Border bordeNormal = BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Colores.BORDE, 1),
-            BorderFactory.createEmptyBorder(8, 12, 8, 12)
-        );
-        Border bordeHover = BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Colores.BORDE_ENFOCADO, 1),
-            BorderFactory.createEmptyBorder(8, 12, 8, 12)
-        );
-        tarjeta.setBorder(bordeNormal);
+        ParBordes bordes = crearBordesTarjeta(acento, 8, 11, 12);
+        tarjeta.setBorder(bordes.normal());
 
         JLabel lblSimbolo = new JLabel(simbolo);
+        lblSimbolo.setName(nombreComponente + "-icono");
         lblSimbolo.setFont(new Font("Consolas", Font.BOLD, 16));
-        lblSimbolo.setForeground(Colores.ACENTO_PRINCIPAL);
+        lblSimbolo.setForeground(acento);
 
         JPanel textos = new JPanel();
         textos.setOpaque(false);
@@ -281,62 +327,53 @@ public class PantallaBienvenida extends JPanel {
         tarjeta.add(lblSimbolo, BorderLayout.WEST);
         tarjeta.add(textos, BorderLayout.CENTER);
 
-        instalarInteraccionTarjeta(tarjeta, bordeNormal, bordeHover, accion);
+        instalarInteraccionTarjeta(tarjeta, bordes, accion);
         return tarjeta;
     }
 
     private JPanel filaReciente(File archivo) {
-        JPanel fila = new JPanel(new BorderLayout(16, 0));
+        JPanel fila = new JPanel(new BorderLayout(12, 0));
         fila.setName("reciente-" + archivo.getName());
-        fila.setBackground(Colores.FONDO_EDITOR);
+        fila.setBackground(Colores.FONDO_TARJETA);
         fila.setAlignmentX(LEFT_ALIGNMENT);
         fila.setMaximumSize(new Dimension(ANCHO_MAX_CONTENIDO, 38));
         fila.setPreferredSize(new Dimension(ANCHO_MAX_CONTENIDO, 38));
         fila.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         fila.setToolTipText(archivo.getAbsolutePath());
 
-        Border bordeNormal = BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Colores.BORDE, 1),
-            BorderFactory.createEmptyBorder(6, 12, 6, 12)
-        );
-        Border bordeHover = BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Colores.BORDE_ENFOCADO, 1),
-            BorderFactory.createEmptyBorder(6, 12, 6, 12)
-        );
-        fila.setBorder(bordeNormal);
+        ParBordes bordes = crearBordesTarjeta(Colores.ACENTO_CYAN, 6, 11, 12);
+        fila.setBorder(bordes.normal());
+
+        JPanel izquierda = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        izquierda.setOpaque(false);
+        izquierda.add(pildora("CS", Colores.ACENTO_CYAN));
 
         JLabel lblNombre = new JLabel(archivo.getName());
         lblNombre.setFont(new Font("Segoe UI", Font.BOLD, 13));
         lblNombre.setForeground(Colores.TEXTO_NORMAL);
+        izquierda.add(lblNombre);
 
         String carpeta = archivo.getParent() != null ? archivo.getParent() : archivo.getAbsolutePath();
-        JLabel lblRuta = new JLabel(carpeta);
+        JLabel lblRuta = new JLabel(carpeta, SwingConstants.RIGHT);
         lblRuta.setFont(new Font("Consolas", Font.PLAIN, 11));
         lblRuta.setForeground(Colores.TEXTO_LINEAS);
 
-        fila.add(lblNombre, BorderLayout.WEST);
-        fila.add(lblRuta, BorderLayout.EAST);
+        fila.add(izquierda, BorderLayout.WEST);
+        fila.add(lblRuta, BorderLayout.CENTER);
 
-        instalarInteraccionTarjeta(fila, bordeNormal, bordeHover, () -> alAbrirReciente.accept(archivo));
+        instalarInteraccionTarjeta(fila, bordes, () -> alAbrirReciente.accept(archivo));
         return fila;
     }
 
-    private JPanel tarjetaEjemplo(int indice, String nombre, String descripcion) {
-        JPanel tarjeta = new JPanel(new BorderLayout(0, 4));
+    private JPanel tarjetaEjemplo(int indice, String nombre, MetaEjemplo meta) {
+        JPanel tarjeta = new JPanel(new BorderLayout(0, 5));
         tarjeta.setName("ejemplo-" + indice);
-        tarjeta.setBackground(Colores.FONDO_EDITOR);
-        tarjeta.setPreferredSize(new Dimension(370, 58));
+        tarjeta.setBackground(Colores.FONDO_TARJETA);
+        tarjeta.setPreferredSize(new Dimension(380, 74));
         tarjeta.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        Border bordeNormal = BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Colores.BORDE, 1),
-            BorderFactory.createEmptyBorder(8, 12, 8, 12)
-        );
-        Border bordeHover = BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Colores.BORDE_ENFOCADO, 1),
-            BorderFactory.createEmptyBorder(8, 12, 8, 12)
-        );
-        tarjeta.setBorder(bordeNormal);
+        ParBordes bordes = crearBordesTarjeta(meta.acento(), 8, 12, 12);
+        tarjeta.setBorder(bordes.normal());
 
         JPanel encabezado = new JPanel(new BorderLayout(8, 0));
         encabezado.setOpaque(false);
@@ -345,38 +382,55 @@ public class PantallaBienvenida extends JPanel {
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 13));
         lblTitulo.setForeground(Colores.TEXTO_NORMAL);
 
-        JLabel lblFlecha = new JLabel("→");
-        lblFlecha.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        lblFlecha.setForeground(Colores.ACENTO_PRINCIPAL);
+        JLabel lblCategoria = pildora(meta.categoria(), meta.acento());
+        lblCategoria.setName("ejemplo-" + indice + "-categoria");
 
         encabezado.add(lblTitulo, BorderLayout.WEST);
-        encabezado.add(lblFlecha, BorderLayout.EAST);
+        encabezado.add(lblCategoria, BorderLayout.EAST);
 
-        JLabel lblDesc = new JLabel(descripcion);
+        JLabel lblDesc = new JLabel("<html><div style='width:270px'>" + meta.descripcion() + "</div></html>");
         lblDesc.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         lblDesc.setForeground(Colores.TEXTO_TENUE);
 
         tarjeta.add(encabezado, BorderLayout.NORTH);
         tarjeta.add(lblDesc, BorderLayout.CENTER);
 
-        instalarInteraccionTarjeta(tarjeta, bordeNormal, bordeHover, () -> alElegirEjemplo.accept(indice));
+        instalarInteraccionTarjeta(tarjeta, bordes, () -> alElegirEjemplo.accept(indice));
         return tarjeta;
     }
 
-    private void instalarInteraccionTarjeta(JPanel tarjeta, Border bordeNormal, Border bordeHover, Runnable accion) {
+    private ParBordes crearBordesTarjeta(Color acento, int padV, int padIzq, int padDer) {
+        Border normal = BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 0, 1, 1, Colores.BORDE),
+            BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 3, 0, 0, acento),
+                BorderFactory.createEmptyBorder(padV, padIzq, padV, padDer)
+            )
+        );
+        Border hover = BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(acento, 1),
+            BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 2, 0, 0, acento),
+                BorderFactory.createEmptyBorder(padV, padIzq, padV, padDer)
+            )
+        );
+        return new ParBordes(normal, hover);
+    }
+
+    private void instalarInteraccionTarjeta(JPanel tarjeta, ParBordes bordes, Runnable accion) {
         MouseAdapter adaptador = new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                tarjeta.setBackground(Colores.FONDO_SELECCION);
-                tarjeta.setBorder(bordeHover);
+                tarjeta.setBackground(Colores.FONDO_TARJETA_HOVER);
+                tarjeta.setBorder(bordes.hover());
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
                 Point p = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), tarjeta);
                 if (!tarjeta.contains(p)) {
-                    tarjeta.setBackground(Colores.FONDO_EDITOR);
-                    tarjeta.setBorder(bordeNormal);
+                    tarjeta.setBackground(Colores.FONDO_TARJETA);
+                    tarjeta.setBorder(bordes.normal());
                 }
             }
 
@@ -399,21 +453,43 @@ public class PantallaBienvenida extends JPanel {
         }
     }
 
-    private JComponent lineaAcento() {
-        JPanel linea = new JPanel();
-        linea.setBackground(Colores.ACENTO_PRINCIPAL);
-        linea.setMaximumSize(new Dimension(44, 2));
-        linea.setPreferredSize(new Dimension(44, 2));
-        linea.setAlignmentX(LEFT_ALIGNMENT);
-        return linea;
+    private JComponent lineaAcentoMulticolor() {
+        Color[] segmentos = {
+            Colores.ACENTO_LEXICO,
+            Colores.ACENTO_SINTACTICO,
+            Colores.ACENTO_SEMANTICO,
+            Colores.ACENTO_INTERMEDIO,
+            Colores.ACENTO_OPTIMIZACION
+        };
+        JPanel barra = new JPanel(new GridLayout(1, segmentos.length, 3, 0));
+        barra.setOpaque(false);
+        barra.setAlignmentX(LEFT_ALIGNMENT);
+        barra.setMaximumSize(new Dimension(160, 3));
+        barra.setPreferredSize(new Dimension(160, 3));
+        for (Color c : segmentos) {
+            JPanel seg = new JPanel();
+            seg.setBackground(c);
+            barra.add(seg);
+        }
+        return barra;
     }
 
-    private JLabel encabezadoSeccion(String texto) {
-        JLabel l = new JLabel(texto.toUpperCase());
-        l.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        l.setForeground(Colores.TEXTO_LINEAS);
-        l.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0));
-        l.setAlignmentX(LEFT_ALIGNMENT);
-        return l;
+    private JPanel encabezadoSeccion(String texto, Color acento) {
+        JPanel fila = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        fila.setOpaque(false);
+        fila.setAlignmentX(LEFT_ALIGNMENT);
+        fila.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0));
+
+        JLabel punto = new JLabel("●");
+        punto.setFont(new Font("Segoe UI", Font.PLAIN, 9));
+        punto.setForeground(acento);
+
+        JLabel titulo = new JLabel(texto.toUpperCase());
+        titulo.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        titulo.setForeground(Colores.TEXTO_TENUE);
+
+        fila.add(punto);
+        fila.add(titulo);
+        return fila;
     }
 }

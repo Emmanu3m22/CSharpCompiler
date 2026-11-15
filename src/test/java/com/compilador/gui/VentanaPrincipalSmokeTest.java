@@ -6,9 +6,13 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.nio.file.Files;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -148,6 +152,98 @@ public class VentanaPrincipalSmokeTest {
             assertEquals(2, ejemploElegido.get(), "Clic en tarjeta de ejemplo debe pasar su índice");
             assertEquals(tempReciente, recienteAbierto.get(), "Clic en fila reciente debe abrir el archivo correspondiente");
         });
+    }
+
+    @Test
+    @DisplayName("PantallaBienvenida resalta acciones y plantillas con múltiples colores de acento")
+    void bienvenidaTieneAcentosMulticolores() throws Exception {
+        Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "Sin pantalla: se omite");
+
+        SwingUtilities.invokeAndWait(() -> {
+            PantallaBienvenida p = new PantallaBienvenida(() -> {}, () -> {}, i -> {}, f -> {}, () -> {});
+
+            Component iconoNuevo = buscarPorNombre(p, "accion-nuevo-icono");
+            Component iconoAbrir = buscarPorNombre(p, "accion-abrir-icono");
+            Component iconoContinuar = buscarPorNombre(p, "accion-continuar-icono");
+
+            assertNotNull(iconoNuevo);
+            assertNotNull(iconoAbrir);
+            assertNotNull(iconoContinuar);
+
+            Set<Color> coloresAcciones = new HashSet<>();
+            coloresAcciones.add(iconoNuevo.getForeground());
+            coloresAcciones.add(iconoAbrir.getForeground());
+            coloresAcciones.add(iconoContinuar.getForeground());
+            assertEquals(3, coloresAcciones.size(),
+                "Cada acción lateral debe usar un color de acento distinto");
+
+            Set<Color> coloresEjemplos = new HashSet<>();
+            for (int i = 0; i < Ejemplos.cantidad(); i++) {
+                Component cat = buscarPorNombre(p, "ejemplo-" + i + "-categoria");
+                assertNotNull(cat, "Debe existir la etiqueta de categoría del ejemplo " + i);
+                coloresEjemplos.add(cat.getForeground());
+            }
+            assertTrue(coloresEjemplos.size() >= 5,
+                "Las tarjetas de ejemplo deben diferenciarse con múltiples acentos de la paleta");
+        });
+    }
+
+    @Test
+    @DisplayName("El atajo global F5 cambia al IDE y ejecuta el análisis del código actual")
+    void atajoF5EjecutaAnalisis() throws Exception {
+        Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "Sin pantalla: se omite");
+
+        boolean bienvenidaPrevia = PreferenciasApp.mostrarBienvenida();
+        try {
+            PreferenciasApp.setMostrarBienvenida(true);
+            SwingUtilities.invokeAndWait(() -> {
+                AplicacionPrincipal ventana = new AplicacionPrincipal();
+                try {
+                    JRootPane root = ventana.getRootPane();
+                    KeyStroke ksF5 = KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0);
+                    InputMap mapa = root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+                    Object claveAccion = mapa.get(ksF5);
+                    assertNotNull(claveAccion, "La ventana debe registrar F5 en WHEN_IN_FOCUSED_WINDOW");
+
+                    Action accionF5 = root.getActionMap().get(claveAccion);
+                    assertNotNull(accionF5, "Debe existir la acción asociada al atajo F5");
+
+                    PanelResumen resumen = buscarPorTipo(ventana.getContentPane(), PanelResumen.class);
+                    ResumenColapsable barraResumen = buscarPorTipo(ventana.getContentPane(), ResumenColapsable.class);
+                    assertNotNull(resumen);
+                    assertNotNull(barraResumen);
+                    assertEquals("Sin análisis", resumen.textoCorto());
+                    assertFalse(barraResumen.isVisible(), "En la bienvenida el resumen debe estar oculto");
+
+                    accionF5.actionPerformed(new ActionEvent(root, ActionEvent.ACTION_PERFORMED, "f5"));
+
+                    assertTrue(barraResumen.isVisible(), "Al presionar F5 desde bienvenida debe mostrarse el IDE");
+                    String textoResumen = resumen.textoCorto();
+                    assertNotEquals("Sin análisis", textoResumen, "F5 debe ejecutar el análisis y actualizar el resumen");
+                    assertTrue(textoResumen.contains("tokens"), "El resumen debe mostrar los tokens analizados tras F5");
+                    assertFalse(textoResumen.startsWith("0 tokens"), "Debe haber analizado el ejemplo cargado");
+                } finally {
+                    ventana.dispose();
+                }
+            });
+        } finally {
+            PreferenciasApp.setMostrarBienvenida(bienvenidaPrevia);
+        }
+    }
+
+    private static <T extends Component> T buscarPorTipo(Component raiz, Class<T> tipo) {
+        if (tipo.isInstance(raiz)) {
+            return tipo.cast(raiz);
+        }
+        if (raiz instanceof Container cont) {
+            for (Component hijo : cont.getComponents()) {
+                T hallado = buscarPorTipo(hijo, tipo);
+                if (hallado != null) {
+                    return hallado;
+                }
+            }
+        }
+        return null;
     }
 
     private static Component buscarPorNombre(Component raiz, String nombre) {

@@ -24,6 +24,10 @@ public final class Colores {
     public static final Color FONDO_TABLA_ROW2   = new Color(32, 62, 105);    // Azul marino alternado
     public static final Color FONDO_SELECCION    = new Color(50, 90, 150);    // Azul marino selección
     public static final Color FONDO_CONTENEDOR   = new Color(35, 70, 120);    // Azul marino contenedor
+    public static final Color FONDO_BIENVENIDA_LATERAL = new Color(18, 44, 82);  // Barra lateral de bienvenida
+    public static final Color FONDO_TARJETA      = new Color(24, 52, 92);     // Fondo de tarjetas de bienvenida
+    public static final Color FONDO_TARJETA_HOVER = new Color(38, 76, 130);   // Fondo hover en tarjetas
+    public static final Color FONDO_INSIGNIA     = new Color(30, 66, 114);    // Fondo para insignias/píldoras
 
     // ── Texto (Pastel y claros) ──
     public static final Color TEXTO_NORMAL       = new Color(220, 237, 255); // Blanco pastel azulado
@@ -37,6 +41,8 @@ public final class Colores {
     public static final Color ACENTO_INTERMEDIO  = new Color(255, 215, 140); // Ámbar pastel intermedio
     public static final Color ACENTO_OPTIMIZACION = new Color(130, 220, 180); // Verde menta pastel optimización
     public static final Color ACENTO_PRINCIPAL   = new Color(150, 200, 255); // Azul pastel principal
+    public static final Color ACENTO_CYAN        = new Color(140, 225, 245); // Cyan pastel armónico
+    public static final Color ACENTO_CORAL       = new Color(255, 185, 195); // Coral pastel armónico
 
     // ── Estados (Pastel elegante) ──
     public static final Color EXITO              = new Color(180, 240, 200); // Verde pastel
