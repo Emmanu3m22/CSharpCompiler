@@ -1,0 +1,19 @@
+// Ejemplo válido con valores usados y una llamada a un método auxiliar.
+class EjemploSinErrores
+{
+    static void Main()
+    {
+        int precio = 100;
+        int cantidad = 2;
+        int subtotal = precio * cantidad;
+        int descuento = 10;
+        int impuesto = 5;
+        int total = subtotal - descuento + impuesto;
+        MostrarResumen(subtotal, descuento, impuesto, total);
+    }
+
+    static void MostrarResumen(int subtotal, int descuento, int impuesto, int total)
+    {
+        Console.WriteLine(total);
+    }
+}

@@ -1,0 +1,52 @@
+// Fixture para validar eliminación de variables, propagación y ramas muertas.
+class OptimizacionCompleta
+{
+    static int Main()
+    {
+        int precioCafe = 45;
+        int cantidad = 2;
+        int copiaPrecio = precioCafe;
+        int copiaCantidad = cantidad;
+        int subtotalCafe = copiaPrecio * copiaCantidad;
+
+        int precioPostre = 30;
+        int copiaPostre = precioPostre;
+        int subtotalPostre = copiaPostre * 2;
+
+        int pedidosCancelados = 0;
+        int mesasDisponibles = 12;
+        int empleadosTemporales = 3;
+        int costoPublicidad = 500;
+        int propinaTemporal = 15;
+        int costoEnvase = 4;
+        int descuentoEspecial = 20;
+        int puntosPromocion = 100;
+
+        if (false)
+        {
+            int pedidoInexistente = 1;
+            Console.WriteLine(pedidoInexistente);
+        }
+
+        if (true)
+        {
+            Console.WriteLine("Pedido registrado correctamente");
+        }
+        else
+        {
+            int productoTemporal = 2;
+        }
+
+        while (false)
+        {
+            int pedidoAlternativo = 3;
+            Console.WriteLine(pedidoAlternativo);
+        }
+
+        Console.WriteLine(subtotalCafe);
+        Console.WriteLine(subtotalPostre);
+        return 0;
+        int codigoInalcanzable = 99;
+        Console.WriteLine(codigoInalcanzable);
+    }
+}

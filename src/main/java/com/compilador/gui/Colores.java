@@ -46,7 +46,7 @@ public final class Colores {
     public static final Color ACENTO_INTERMEDIO        = new Color(43, 89, 195);   // #2B59C3 Azul cobalto
     public static final Color ACENTO_OPTIMIZACION      = new Color(180, 83, 9);    // #B45309 Ámbar tostado
     public static final Color ACENTO_PRINCIPAL         = new Color(122, 53, 199);  // #7A35C7
-    public static final Color ACENTO_CYAN              = new Color(14, 116, 144);  // #0E7490
+    public static final Color ACENTO_CYAN              = new Color(92, 82, 166);  // #5C52A6 Violeta azulado
     public static final Color ACENTO_CORAL             = new Color(194, 65, 92);   // #C2415C
 
     // ── Estados: conserva el significado y mejora el contraste en fondos claros ──

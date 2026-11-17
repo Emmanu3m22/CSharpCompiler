@@ -4,8 +4,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -103,7 +103,7 @@ public class OptimizadorFuenteTest {
     @Test
     @DisplayName("Elimina comentarios aunque no haya código muerto ni copias (Ejemplo_Sin_Errores.txt)")
     void testQuitaComentariosAunqueNoHayaCodigoMuertoNiCopias() throws Exception {
-        String codigoArchivo = Files.readString(Path.of("Ejemplo_Sin_Errores.txt"), StandardCharsets.UTF_8);
+        String codigoArchivo = leerFixture("Ejemplo_Sin_Errores.txt");
         OptimizadorFuente opt = OptimizadorFuente.crearPorDefecto();
         ResultadoOptimizacionFuente res = opt.optimizar(codigoArchivo);
 
@@ -136,7 +136,7 @@ public class OptimizadorFuenteTest {
     @Test
     @DisplayName("Optimizacion_Completa.txt elimina comentarios, copias, variables sin uso y ramas muertas")
     void testArchivoOptimizacionCompleta() throws Exception {
-        String codigo = Files.readString(Path.of("Optimizacion_Completa.txt"), StandardCharsets.UTF_8);
+        String codigo = leerFixture("Optimizacion_Completa.txt");
         OptimizadorFuente opt = OptimizadorFuente.crearPorDefecto();
         ResultadoOptimizacionFuente res = opt.optimizar(codigo);
 
@@ -174,6 +174,15 @@ public class OptimizadorFuenteTest {
         assertFalse(limpio.contains("codigoInalcanzable"));
         assertTrue(limpio.contains("Console.WriteLine(\"Pedido registrado correctamente\");"));
         assertTrue(limpio.contains("return 0;"));
+    }
+
+    private static String leerFixture(String nombre) throws IOException {
+        try (InputStream recurso = OptimizadorFuenteTest.class.getResourceAsStream("/" + nombre)) {
+            if (recurso == null) {
+                throw new IOException("No se encontró el recurso de prueba: " + nombre);
+            }
+            return new String(recurso.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
     @Test
