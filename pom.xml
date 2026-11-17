@@ -25,6 +25,14 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>resources</directory>
+            </resource>
+        </resources>
         <pluginManagement>
             <plugins>
                 <!-- Configuración para Eclipse m2e (Language Support for Java en VS Code) -->

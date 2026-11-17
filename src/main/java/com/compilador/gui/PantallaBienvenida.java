@@ -79,20 +79,18 @@ public class PantallaBienvenida extends JPanel {
         // ── Identidad de la aplicación ──
         JPanel filaMarca = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         filaMarca.setOpaque(false);
-        filaMarca.setAlignmentX(LEFT_ALIGNMENT);
+        filaMarca.setAlignmentX(CENTER_ALIGNMENT);
 
-        JLabel iconoMarca = new JLabel("</>");
-        iconoMarca.setFont(new Font("Consolas", Font.BOLD, 24));
-        iconoMarca.setForeground(Colores.ACENTO_PRINCIPAL);
+        JLabel iconoMarca = new JLabel(IconoAplicacion.cargar(64));
 
-        JLabel insigniaVersion = new JLabel("  IDE · C#");
-        insigniaVersion.setFont(new Font("Consolas", Font.BOLD, 12));
-        insigniaVersion.setForeground(Colores.ACENTO_CYAN);
+        // JLabel insigniaVersion = new JLabel(" C# · V1.0");
+        // insigniaVersion.setFont(new Font("Consolas", Font.BOLD, 12));
+        // insigniaVersion.setForeground(Colores.ACENTO_CYAN);
 
         filaMarca.add(iconoMarca);
-        filaMarca.add(insigniaVersion);
+        // filaMarca.add(insigniaVersion);
 
-        JLabel titulo = new JLabel("Compilador C#");
+        JLabel titulo = new JLabel(AplicacionPrincipal.TITULO_APLICACION);
         titulo.setFont(new Font("Segoe UI", Font.BOLD, 22));
         titulo.setForeground(Colores.TEXTO_NORMAL);
         titulo.setAlignmentX(LEFT_ALIGNMENT);

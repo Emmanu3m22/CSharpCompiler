@@ -37,10 +37,8 @@ public class BarraTitulo extends JPanel {
         JPanel izquierda = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         izquierda.setOpaque(false);
 
-        JLabel marca = new JLabel("</>");
-        marca.setFont(new Font("Consolas", Font.BOLD, 13));
-        marca.setForeground(Colores.TEXTO_BARRA_TITULO);
-        marca.setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 10));
+        JLabel marca = new JLabel(IconoAplicacion.cargar(24));
+        marca.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 8));
         izquierda.add(marca);
 
         lblTitulo = new JLabel(titulo);

@@ -20,7 +20,7 @@ public class Main {
         }
 
         System.out.println("╔══════════════════════════════════════════╗");
-        System.out.println("║   Compilador LenguajeCSharp v1.0        ║");
+        System.out.println("║       Cat Sharp Compiler                ║");
         System.out.println("╚══════════════════════════════════════════╝");
         System.out.println();
 

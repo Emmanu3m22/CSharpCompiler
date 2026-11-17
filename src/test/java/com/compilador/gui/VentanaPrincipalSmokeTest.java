@@ -27,6 +27,14 @@ import static org.junit.jupiter.api.Assertions.*;
 public class VentanaPrincipalSmokeTest {
 
     @Test
+    @DisplayName("El ícono de la aplicación está disponible desde los recursos")
+    void iconoAplicacionSeCargaDesdeRecursos() {
+        ImageIcon icono = IconoAplicacion.cargar(32);
+        assertEquals(32, icono.getIconWidth());
+        assertEquals(32, icono.getIconHeight());
+    }
+
+    @Test
     @DisplayName("La ventana principal se construye sin decoración del sistema y con barra propia")
     void construyeVentanaPersonalizada() throws Exception {
         Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "Sin pantalla: se omite");
@@ -35,6 +43,8 @@ public class VentanaPrincipalSmokeTest {
         SwingUtilities.invokeAndWait(() -> {
             AplicacionPrincipal ventana = new AplicacionPrincipal();
             sinDecoracion.set(ventana.isUndecorated());
+            assertEquals(AplicacionPrincipal.TITULO_APLICACION, ventana.getTitle());
+            assertFalse(ventana.getIconImages().isEmpty());
             ventana.setTitle("Prueba");
             ventana.dispose();
         });

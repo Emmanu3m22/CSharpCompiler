@@ -53,6 +53,7 @@ import com.compilador.optimizacion.fuente.ResultadoOptimizacionFuente;
  *
  */
 public class AplicacionPrincipal extends JFrame {
+    public static final String TITULO_APLICACION = "Cat Sharp Compiler ";
 
     // ── Componentes de la interfaz ──
     private final EditorCodigo editor;
@@ -99,8 +100,13 @@ public class AplicacionPrincipal extends JFrame {
     }
 
     public AplicacionPrincipal() {
-        super("Compilador LenguajeCSharp v1.0");
+        super(TITULO_APLICACION);
         setUndecorated(true);
+        setIconImages(java.util.List.of(
+                IconoAplicacion.cargar(16).getImage(),
+                IconoAplicacion.cargar(32).getImage(),
+                IconoAplicacion.cargar(64).getImage(),
+                IconoAplicacion.cargar(128).getImage()));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1200, 750);
         setMinimumSize(new Dimension(900, 550));
@@ -131,7 +137,7 @@ public class AplicacionPrincipal extends JFrame {
         // ── Ensamblar layout ──
         setLayout(new BorderLayout(0, 0));
 
-        barraTitulo = new BarraTitulo(this, "Compilador LenguajeCSharp v1.0");
+        barraTitulo = new BarraTitulo(this, TITULO_APLICACION);
         toolbarPanel = crearToolbar();
         JPanel norte = new JPanel(new BorderLayout());
         norte.setOpaque(false);
@@ -226,7 +232,7 @@ public class AplicacionPrincipal extends JFrame {
         editor.setCodigo("");
         limpiarResultados();
         nombreArchivoActual = null;
-        setTitle("Compilador LenguajeCSharp");
+        setTitle(TITULO_APLICACION);
         mostrarIde();
     }
 
@@ -234,7 +240,7 @@ public class AplicacionPrincipal extends JFrame {
         editor.setCodigo(Ejemplos.getCodigo(indice));
         limpiarResultados();
         nombreArchivoActual = null;
-        setTitle("Compilador LenguajeCSharp");
+        setTitle(TITULO_APLICACION);
         mostrarIde();
     }
 
@@ -710,7 +716,7 @@ public class AplicacionPrincipal extends JFrame {
             limpiarResultados();
             nombreArchivoActual = archivo.getName();
             PreferenciasApp.agregarReciente(archivo);
-            setTitle("Compilador LenguajeCSharp — " + archivo.getName());
+            setTitle(TITULO_APLICACION + " — " + archivo.getName());
             mostrarIde();
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this,
@@ -731,7 +737,7 @@ public class AplicacionPrincipal extends JFrame {
                         JOptionPane.INFORMATION_MESSAGE);
                 nombreArchivoActual = archivo.getName();
                 PreferenciasApp.agregarReciente(archivo);
-                setTitle("Compilador LenguajeCSharp — " + archivo.getName());
+                setTitle(TITULO_APLICACION + " — " + archivo.getName());
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this, "Error al guardar el archivo: " + ex.getMessage(), "Error",
                         JOptionPane.ERROR_MESSAGE);
