@@ -13,54 +13,53 @@ public final class Colores {
 
     private Colores() {} // No instanciable
 
-    // ── Fondos morados del icono ──
-    //public static final Color FONDO_PRINCIPAL    = new Color(31, 8, 61);      // #1F083D
-    public static final Color FONDO_PRINCIPAL    = new Color(231, 213, 242);      // rgb(231, 213, 242)
-    public static final Color FONDO_PANEL        = new Color(54, 12, 83);     // #360C53
-    public static final Color FONDO_EDITOR       = new Color(32, 8, 65);      // #200841
-    public static final Color FONDO_LINEAS       = new Color(29, 6, 57);      // #1D0639
-    public static final Color FONDO_TOOLBAR      = new Color(42, 11, 72);     // #2A0B48
-    public static final Color FONDO_TABLA_HEADER = new Color(75, 36, 128);    // #4B2480
-    public static final Color FONDO_TABLA_ROW1   = new Color(44, 9, 84);      // #2C0954
-    public static final Color FONDO_TABLA_ROW2   = new Color(49, 16, 89);     // #311059
-    public static final Color FONDO_SELECCION    = new Color(65, 24, 117);    // #411875
-    public static final Color FONDO_CONTENEDOR   = new Color(49, 16, 89);     // #311059
-    public static final Color FONDO_BIENVENIDA_LATERAL = new Color(32, 8, 65); // #200841
-    public static final Color FONDO_TARJETA      = new Color(42, 11, 72);     // #2A0B48
-    public static final Color FONDO_TARJETA_HOVER = new Color(65, 24, 117);   // #411875
-    public static final Color FONDO_INSIGNIA     = new Color(49, 16, 89);     // #311059
+    // ── Fondos morados claros basados en el icono ──
+    public static final Color FONDO_PRINCIPAL    = new Color(231, 213, 242); // #E7D5F2
+    public static final Color FONDO_PANEL        = new Color(238, 228, 246); // #EEE4F6
+    public static final Color FONDO_EDITOR       = new Color(250, 247, 252); // #FAF7FC
+    public static final Color FONDO_LINEAS       = new Color(238, 228, 246); // #EEE4F6
+    public static final Color FONDO_TOOLBAR      = new Color(233, 220, 243); // #E9DCF3
+    public static final Color FONDO_TABLA_HEADER = new Color(217, 194, 234); // #D9C2EA
+    public static final Color FONDO_TABLA_ROW1   = new Color(248, 243, 251); // #F8F3FB
+    public static final Color FONDO_TABLA_ROW2   = new Color(238, 228, 246); // #EEE4F6
+    public static final Color FONDO_SELECCION    = new Color(216, 188, 235); // #D8BCEB
+    public static final Color FONDO_CONTENEDOR   = new Color(238, 228, 246); // #EEE4F6
+    public static final Color FONDO_BIENVENIDA_LATERAL = new Color(233, 220, 243); // #E9DCF3
+    public static final Color FONDO_TARJETA      = new Color(248, 243, 251); // #F8F3FB
+    public static final Color FONDO_TARJETA_HOVER = new Color(230, 213, 240); // #E6D5F0
+    public static final Color FONDO_INSIGNIA     = new Color(231, 213, 242); // #E7D5F2
 
-    // ── Texto lavanda ──
-    public static final Color TEXTO_NORMAL       = new Color(227, 206, 238); // #E3CEEE
-    public static final Color TEXTO_TENUE        = new Color(217, 182, 241); // #D9B6F1
-    public static final Color TEXTO_LINEAS       = new Color(155, 115, 205); // #9B73CD
+    // ── Texto morado oscuro ──
+    public static final Color TEXTO_NORMAL       = new Color(45, 23, 64);    // #2D1740
+    public static final Color TEXTO_TENUE        = new Color(91, 67, 112);   // #5B4370
+    public static final Color TEXTO_LINEAS       = new Color(114, 83, 138);  // #72538A
 
     // ── Acentos morados por fase ──
-    public static final Color ACENTO_LEXICO      = new Color(155, 115, 205); // #9B73CD
-    public static final Color ACENTO_SINTACTICO  = new Color(217, 182, 241); // #D9B6F1
-    public static final Color ACENTO_SEMANTICO   = new Color(227, 206, 238); // #E3CEEE
+    public static final Color ACENTO_LEXICO      = new Color(112, 70, 157);  // #70469D
+    public static final Color ACENTO_SINTACTICO  = new Color(129, 84, 169);  // #8154A9
+    public static final Color ACENTO_SEMANTICO   = new Color(87, 53, 120);   // #573578
     public static final Color ACENTO_INTERMEDIO  = new Color(116, 72, 198);  // #7448C6
-    public static final Color ACENTO_OPTIMIZACION = new Color(192, 127, 215); // #C07FD7
-    public static final Color ACENTO_PRINCIPAL   = new Color(217, 182, 241); // #D9B6F1
-    public static final Color ACENTO_CYAN        = new Color(150, 89, 206);  // #9659CE
-    public static final Color ACENTO_CORAL       = new Color(192, 127, 215); // #C07FD7
+    public static final Color ACENTO_OPTIMIZACION = new Color(150, 89, 206); // #9659CE
+    public static final Color ACENTO_PRINCIPAL   = new Color(116, 72, 198);  // #7448C6
+    public static final Color ACENTO_CYAN        = new Color(140, 90, 176);  // #8C5AB0
+    public static final Color ACENTO_CORAL       = new Color(165, 101, 180); // #A565B4
 
-    // ── Estados (Pastel elegante) ──
-    public static final Color EXITO              = new Color(180, 240, 200); // Verde pastel
-    public static final Color ERROR              = new Color(255, 180, 200); // Rosa pastel error
-    public static final Color ADVERTENCIA        = new Color(255, 220, 150); // Naranja pastel
-    public static final Color INFO               = new Color(150, 200, 255); // Azul pastel info
+    // ── Estados: conserva el significado y mejora el contraste en fondos claros ──
+    public static final Color EXITO              = new Color(43, 119, 77);   // Verde
+    public static final Color ERROR              = new Color(166, 48, 69);   // Rojo
+    public static final Color ADVERTENCIA        = new Color(145, 91, 20);   // Ámbar
+    public static final Color INFO               = new Color(49, 91, 145);   // Azul
 
-    // ── Sintaxis (resaltado de código) ──
-    public static final Color SINTAXIS_KEYWORD   = new Color(220, 190, 255); // Morado pastel
-    public static final Color SINTAXIS_STRING    = new Color(180, 240, 200); // Verde pastel
-    public static final Color SINTAXIS_NUMERO    = new Color(255, 200, 150); // Naranja pastel
-    public static final Color SINTAXIS_COMENTARIO = new Color(130, 170, 210); // Azul gris pastel
-    public static final Color SINTAXIS_OPERADOR  = new Color(150, 220, 240); // Cyan pastel
+    // ── Sintaxis: conserva los tonos por categoría con contraste para editor claro ──
+    public static final Color SINTAXIS_KEYWORD   = new Color(103, 57, 140);  // Morado
+    public static final Color SINTAXIS_STRING    = new Color(43, 119, 77);   // Verde
+    public static final Color SINTAXIS_NUMERO    = new Color(145, 78, 28);   // Naranja
+    public static final Color SINTAXIS_COMENTARIO = new Color(82, 102, 133); // Azul gris
+    public static final Color SINTAXIS_OPERADOR  = new Color(38, 105, 121);  // Cyan
 
     // ── Bordes ──
-    public static final Color BORDE              = new Color(75, 36, 128);   // #4B2480
-    public static final Color BORDE_ENFOCADO     = new Color(192, 127, 215); // #C07FD7
+    public static final Color BORDE              = new Color(196, 173, 214); // #C4ADD6
+    public static final Color BORDE_ENFOCADO     = new Color(150, 89, 206);  // #9659CE
 
     // ── Fuentes ──
     public static final Font FUENTE_CODIGO       = new Font("Consolas", Font.PLAIN, 14);
@@ -69,15 +68,15 @@ public final class Colores {
     public static final Font FUENTE_PEQUENA      = new Font("Segoe UI Emoji", Font.PLAIN, 11);
     public static final Font FUENTE_TABLA        = new Font("Consolas", Font.PLAIN, 12);
 
-    // ── Selección de alto contraste (fondo claro + texto oscuro) ──
-    public static final Color SEL_FONDO          = new Color(150, 89, 206); // #9659CE
-    public static final Color SEL_TEXTO          = new Color(31, 8, 61);    // #1F083D
+    // ── Selección de alto contraste ──
+    public static final Color SEL_FONDO          = new Color(216, 188, 235); // #D8BCEB
+    public static final Color SEL_TEXTO          = new Color(45, 23, 64);    // #2D1740
 
     public static String toHex(Color color) {
         return String.format("%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
 
-    /** Estiliza un JTabbedPane: pestaña activa clara con texto oscuro, inactivas oscuras con texto claro. */
+    /** Estiliza un JTabbedPane con tonos lavanda y texto oscuro. */
     public static void estilizarPestanas(javax.swing.JTabbedPane tabs) {
         tabs.setUI(new javax.swing.plaf.basic.BasicTabbedPaneUI() {
             @Override
