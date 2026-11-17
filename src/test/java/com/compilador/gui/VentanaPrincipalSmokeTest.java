@@ -155,8 +155,8 @@ public class VentanaPrincipalSmokeTest {
     }
 
     @Test
-    @DisplayName("PantallaBienvenida resalta acciones y plantillas con múltiples colores de acento")
-    void bienvenidaTieneAcentosMulticolores() throws Exception {
+    @DisplayName("PantallaBienvenida diferencia acciones y plantillas con tonos morados del icono")
+    void bienvenidaTieneAcentosMoradosDistintos() throws Exception {
         Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "Sin pantalla: se omite");
 
         SwingUtilities.invokeAndWait(() -> {

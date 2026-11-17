@@ -5,7 +5,7 @@ import java.awt.Font;
 
 /**
  * Paleta de colores centralizada para toda la interfaz.
- * Tema elegante: Azul marino con colores pastel.
+ * Tema morado basado en los tonos del icono de la aplicación.
  *
  * Uso: Colores.FONDO_PRINCIPAL, Colores.TEXTO_NORMAL, etc.
  */
@@ -13,36 +13,37 @@ public final class Colores {
 
     private Colores() {} // No instanciable
 
-    // ── Fondos (Azul marino + Pastel) ──
-    public static final Color FONDO_PRINCIPAL    = new Color(15, 38, 70);     // Azul marino oscuro
-    public static final Color FONDO_PANEL        = new Color(25, 55, 95);     // Azul marino medio
-    public static final Color FONDO_EDITOR       = new Color(20, 45, 80);     // Azul marino claro
-    public static final Color FONDO_LINEAS       = new Color(15, 38, 70);     // Azul marino oscuro
-    public static final Color FONDO_TOOLBAR      = new Color(20, 50, 90);     // Azul marino
-    public static final Color FONDO_TABLA_HEADER = new Color(30, 65, 115);    // Azul marino más claro
-    public static final Color FONDO_TABLA_ROW1   = new Color(25, 55, 95);     // Azul marino medio
-    public static final Color FONDO_TABLA_ROW2   = new Color(32, 62, 105);    // Azul marino alternado
-    public static final Color FONDO_SELECCION    = new Color(50, 90, 150);    // Azul marino selección
-    public static final Color FONDO_CONTENEDOR   = new Color(35, 70, 120);    // Azul marino contenedor
-    public static final Color FONDO_BIENVENIDA_LATERAL = new Color(18, 44, 82);  // Barra lateral de bienvenida
-    public static final Color FONDO_TARJETA      = new Color(24, 52, 92);     // Fondo de tarjetas de bienvenida
-    public static final Color FONDO_TARJETA_HOVER = new Color(38, 76, 130);   // Fondo hover en tarjetas
-    public static final Color FONDO_INSIGNIA     = new Color(30, 66, 114);    // Fondo para insignias/píldoras
+    // ── Fondos morados del icono ──
+    //public static final Color FONDO_PRINCIPAL    = new Color(31, 8, 61);      // #1F083D
+    public static final Color FONDO_PRINCIPAL    = new Color(231, 213, 242);      // rgb(231, 213, 242)
+    public static final Color FONDO_PANEL        = new Color(54, 12, 83);     // #360C53
+    public static final Color FONDO_EDITOR       = new Color(32, 8, 65);      // #200841
+    public static final Color FONDO_LINEAS       = new Color(29, 6, 57);      // #1D0639
+    public static final Color FONDO_TOOLBAR      = new Color(42, 11, 72);     // #2A0B48
+    public static final Color FONDO_TABLA_HEADER = new Color(75, 36, 128);    // #4B2480
+    public static final Color FONDO_TABLA_ROW1   = new Color(44, 9, 84);      // #2C0954
+    public static final Color FONDO_TABLA_ROW2   = new Color(49, 16, 89);     // #311059
+    public static final Color FONDO_SELECCION    = new Color(65, 24, 117);    // #411875
+    public static final Color FONDO_CONTENEDOR   = new Color(49, 16, 89);     // #311059
+    public static final Color FONDO_BIENVENIDA_LATERAL = new Color(32, 8, 65); // #200841
+    public static final Color FONDO_TARJETA      = new Color(42, 11, 72);     // #2A0B48
+    public static final Color FONDO_TARJETA_HOVER = new Color(65, 24, 117);   // #411875
+    public static final Color FONDO_INSIGNIA     = new Color(49, 16, 89);     // #311059
 
-    // ── Texto (Pastel y claros) ──
-    public static final Color TEXTO_NORMAL       = new Color(220, 237, 255); // Blanco pastel azulado
-    public static final Color TEXTO_TENUE        = new Color(170, 195, 230); // Azul pastel suave
-    public static final Color TEXTO_LINEAS       = new Color(110, 145, 190); // Azul pastel medio
+    // ── Texto lavanda ──
+    public static final Color TEXTO_NORMAL       = new Color(227, 206, 238); // #E3CEEE
+    public static final Color TEXTO_TENUE        = new Color(217, 182, 241); // #D9B6F1
+    public static final Color TEXTO_LINEAS       = new Color(155, 115, 205); // #9B73CD
 
-    // ── Acentos por fase (Colores Pastel) ──
-    public static final Color ACENTO_LEXICO      = new Color(150, 200, 255); // Azul pastel claro
-    public static final Color ACENTO_SINTACTICO  = new Color(180, 240, 200); // Verde pastel
-    public static final Color ACENTO_SEMANTICO   = new Color(230, 190, 255); // Morado pastel
-    public static final Color ACENTO_INTERMEDIO  = new Color(255, 215, 140); // Ámbar pastel intermedio
-    public static final Color ACENTO_OPTIMIZACION = new Color(130, 220, 180); // Verde menta pastel optimización
-    public static final Color ACENTO_PRINCIPAL   = new Color(150, 200, 255); // Azul pastel principal
-    public static final Color ACENTO_CYAN        = new Color(140, 225, 245); // Cyan pastel armónico
-    public static final Color ACENTO_CORAL       = new Color(255, 185, 195); // Coral pastel armónico
+    // ── Acentos morados por fase ──
+    public static final Color ACENTO_LEXICO      = new Color(155, 115, 205); // #9B73CD
+    public static final Color ACENTO_SINTACTICO  = new Color(217, 182, 241); // #D9B6F1
+    public static final Color ACENTO_SEMANTICO   = new Color(227, 206, 238); // #E3CEEE
+    public static final Color ACENTO_INTERMEDIO  = new Color(116, 72, 198);  // #7448C6
+    public static final Color ACENTO_OPTIMIZACION = new Color(192, 127, 215); // #C07FD7
+    public static final Color ACENTO_PRINCIPAL   = new Color(217, 182, 241); // #D9B6F1
+    public static final Color ACENTO_CYAN        = new Color(150, 89, 206);  // #9659CE
+    public static final Color ACENTO_CORAL       = new Color(192, 127, 215); // #C07FD7
 
     // ── Estados (Pastel elegante) ──
     public static final Color EXITO              = new Color(180, 240, 200); // Verde pastel
@@ -58,8 +59,8 @@ public final class Colores {
     public static final Color SINTAXIS_OPERADOR  = new Color(150, 220, 240); // Cyan pastel
 
     // ── Bordes ──
-    public static final Color BORDE              = new Color(50, 100, 160);    // Azul marino borde
-    public static final Color BORDE_ENFOCADO     = new Color(150, 200, 255);  // Azul pastel enfocado
+    public static final Color BORDE              = new Color(75, 36, 128);   // #4B2480
+    public static final Color BORDE_ENFOCADO     = new Color(192, 127, 215); // #C07FD7
 
     // ── Fuentes ──
     public static final Font FUENTE_CODIGO       = new Font("Consolas", Font.PLAIN, 14);
@@ -69,8 +70,12 @@ public final class Colores {
     public static final Font FUENTE_TABLA        = new Font("Consolas", Font.PLAIN, 12);
 
     // ── Selección de alto contraste (fondo claro + texto oscuro) ──
-    public static final Color SEL_FONDO          = new Color(150, 200, 255);
-    public static final Color SEL_TEXTO          = new Color(10, 25, 50);
+    public static final Color SEL_FONDO          = new Color(150, 89, 206); // #9659CE
+    public static final Color SEL_TEXTO          = new Color(31, 8, 61);    // #1F083D
+
+    public static String toHex(Color color) {
+        return String.format("%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
+    }
 
     /** Estiliza un JTabbedPane: pestaña activa clara con texto oscuro, inactivas oscuras con texto claro. */
     public static void estilizarPestanas(javax.swing.JTabbedPane tabs) {

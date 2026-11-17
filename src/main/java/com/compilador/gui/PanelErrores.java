@@ -269,7 +269,8 @@ public class PanelErrores extends JPanel {
         contenido.add(Box.createVerticalStrut(3));
 
         // Fila 2: Mensaje del error
-        String msgHtml = "<html><p style='width:340px; color:#DCEBFF; margin:0; padding:0;'>" +
+        String msgHtml = "<html><p style='width:340px; color:#" + Colores.toHex(Colores.TEXTO_NORMAL)
+            + "; margin:0; padding:0;'>" +
             error.getMensaje().replace("<", "&lt;").replace(">", "&gt;") + "</p></html>";
         JLabel lblMensaje = new JLabel(msgHtml);
         lblMensaje.setFont(Colores.FUENTE_NORMAL);
@@ -348,7 +349,7 @@ public class PanelErrores extends JPanel {
             JLabel lblToken = new JLabel(" " + token + " ");
             lblToken.setFont(new Font("Consolas", Font.BOLD, 12));
             lblToken.setForeground(Colores.ADVERTENCIA); // Dorado claro de alto contraste
-            lblToken.setBackground(new Color(12, 28, 52)); // Fondo oscuro nítido
+            lblToken.setBackground(Colores.FONDO_EDITOR);
             lblToken.setOpaque(true);
             lblToken.setBorder(BorderFactory.createLineBorder(Colores.BORDE, 1));
             filaHeader.add(lblToken, BorderLayout.EAST);
@@ -357,7 +358,8 @@ public class PanelErrores extends JPanel {
         contenido.add(Box.createVerticalStrut(3));
 
         // Fila 2: Mensaje explicativo claro en texto legible
-        String msgHtml = "<html><p style='width:340px; color:#DCEBFF; margin:0; padding:0;'>" + 
+        String msgHtml = "<html><p style='width:340px; color:#" + Colores.toHex(Colores.TEXTO_NORMAL)
+            + "; margin:0; padding:0;'>" +
             info.getMensaje().replace("<", "&lt;").replace(">", "&gt;") + "</p></html>";
         JLabel lblMensaje = new JLabel(msgHtml);
         lblMensaje.setFont(Colores.FUENTE_NORMAL);

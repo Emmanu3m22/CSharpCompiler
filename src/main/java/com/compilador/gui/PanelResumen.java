@@ -165,11 +165,7 @@ public class PanelResumen extends JPanel {
 
     private String formatearMetrica(String nombre, int valor, Color color) {
         String hex = String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
-        return "<html><font color='#" + toHex(Colores.TEXTO_TENUE) + "'>" + nombre
+        return "<html><font color='#" + Colores.toHex(Colores.TEXTO_TENUE) + "'>" + nombre
                 + "</font> <font color='" + hex + "'><b>" + valor + "</b></font></html>";
-    }
-
-    private String toHex(Color c) {
-        return String.format("%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
     }
 }

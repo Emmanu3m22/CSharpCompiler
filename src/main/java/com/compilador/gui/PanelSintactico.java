@@ -162,7 +162,8 @@ public class PanelSintactico extends JPanel {
         contenido.add(Box.createVerticalStrut(3));
 
         // Fila 2: Mensaje explicativo claro en texto legible
-        String msgHtml = "<html><p style='width:340px; color:#DCEBFF; margin:0; padding:0;'>" + 
+        String msgHtml = "<html><p style='width:340px; color:#" + Colores.toHex(Colores.TEXTO_NORMAL)
+            + "; margin:0; padding:0;'>" +
             info.getMensaje().replace("<", "&lt;").replace(">", "&gt;") + "</p></html>";
         JLabel lblMensaje = new JLabel(msgHtml);
         lblMensaje.setFont(Colores.FUENTE_NORMAL);
