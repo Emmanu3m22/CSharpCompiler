@@ -153,7 +153,7 @@ public class PanelSintactico extends JPanel {
             JLabel lblToken = new JLabel(" " + error.getTokenEncontrado() + " ");
             lblToken.setFont(new Font("Consolas", Font.BOLD, 12));
             lblToken.setForeground(Colores.ADVERTENCIA); // Dorado claro de alto contraste
-            lblToken.setBackground(new java.awt.Color(12, 28, 52)); // Fondo oscuro nítido
+            lblToken.setBackground(Colores.FONDO_INSIGNIA); // Fondo oscuro nítido
             lblToken.setOpaque(true);
             lblToken.setBorder(BorderFactory.createLineBorder(Colores.BORDE, 1));
             filaHeader.add(lblToken, BorderLayout.EAST);

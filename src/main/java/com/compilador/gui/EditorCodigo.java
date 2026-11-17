@@ -31,7 +31,7 @@ public class EditorCodigo extends JPanel {
     private final JLabel lblCursor;
         private final List<Object> resaltadosErrores = new ArrayList<>();
         private final Highlighter.HighlightPainter pintorError =
-            new DefaultHighlighter.DefaultHighlightPainter(new Color(120, 45, 55));
+            new DefaultHighlighter.DefaultHighlightPainter(new Color(247, 90, 118));
 
     /** Palabras reservadas del lenguaje para resaltado */
     private static final String[] KEYWORDS = {

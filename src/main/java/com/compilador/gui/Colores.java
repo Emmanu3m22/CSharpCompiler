@@ -28,25 +28,30 @@ public final class Colores {
     public static final Color FONDO_TARJETA      = new Color(248, 243, 251); // #F8F3FB
     public static final Color FONDO_TARJETA_HOVER = new Color(230, 213, 240); // #E6D5F0
     public static final Color FONDO_INSIGNIA     = new Color(231, 213, 242); // #E7D5F2
+    public static final Color FONDO_BARRA_TITULO = new Color(87, 53, 120);   // #573578
+    public static final Color FONDO_BOTON        = new Color(112, 70, 157);  // #70469D
+    public static final Color FONDO_BOTON_HOVER  = new Color(87, 53, 120);   // #573578
 
     // ── Texto morado oscuro ──
     public static final Color TEXTO_NORMAL       = new Color(45, 23, 64);    // #2D1740
     public static final Color TEXTO_TENUE        = new Color(91, 67, 112);   // #5B4370
     public static final Color TEXTO_LINEAS       = new Color(114, 83, 138);  // #72538A
+    public static final Color TEXTO_BARRA_TITULO = new Color(250, 247, 252); // #FAF7FC
+    public static final Color TEXTO_BOTON        = new Color(250, 247, 252); // #FAF7FC
 
-    // ── Acentos morados por fase ──
-    public static final Color ACENTO_LEXICO      = new Color(112, 70, 157);  // #70469D
-    public static final Color ACENTO_SINTACTICO  = new Color(129, 84, 169);  // #8154A9
-    public static final Color ACENTO_SEMANTICO   = new Color(87, 53, 120);   // #573578
-    public static final Color ACENTO_INTERMEDIO  = new Color(116, 72, 198);  // #7448C6
-    public static final Color ACENTO_OPTIMIZACION = new Color(150, 89, 206); // #9659CE
-    public static final Color ACENTO_PRINCIPAL   = new Color(116, 72, 198);  // #7448C6
-    public static final Color ACENTO_CYAN        = new Color(140, 90, 176);  // #8C5AB0
-    public static final Color ACENTO_CORAL       = new Color(165, 101, 180); // #A565B4
+    // ── Acentos diferenciados por etapa del compilador ──
+    public static final Color ACENTO_LEXICO            = new Color(122, 53, 199);  // #7A35C7 Violeta
+    public static final Color ACENTO_SINTACTICO        = new Color(14, 116, 144);  // #0E7490 Cian petróleo
+    public static final Color ACENTO_SEMANTICO         = new Color(194, 65, 92);   // #C2415C Coral frambuesa
+    public static final Color ACENTO_INTERMEDIO        = new Color(43, 89, 195);   // #2B59C3 Azul cobalto
+    public static final Color ACENTO_OPTIMIZACION      = new Color(180, 83, 9);    // #B45309 Ámbar tostado
+    public static final Color ACENTO_PRINCIPAL         = new Color(122, 53, 199);  // #7A35C7
+    public static final Color ACENTO_CYAN              = new Color(14, 116, 144);  // #0E7490
+    public static final Color ACENTO_CORAL             = new Color(194, 65, 92);   // #C2415C
 
     // ── Estados: conserva el significado y mejora el contraste en fondos claros ──
     public static final Color EXITO              = new Color(43, 119, 77);   // Verde
-    public static final Color ERROR              = new Color(166, 48, 69);   // Rojo
+    public static final Color ERROR              = new Color(247, 81, 111);   // #F7516F Rojo
     public static final Color ADVERTENCIA        = new Color(145, 91, 20);   // Ámbar
     public static final Color INFO               = new Color(49, 91, 145);   // Azul
 

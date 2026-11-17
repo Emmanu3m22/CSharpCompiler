@@ -29,7 +29,7 @@ public class BarraTitulo extends JPanel {
     public BarraTitulo(JFrame ventana, String titulo) {
         this.ventana = ventana;
         setLayout(new BorderLayout());
-        setBackground(Colores.FONDO_PRINCIPAL);
+        setBackground(Colores.FONDO_BARRA_TITULO);
         setPreferredSize(new Dimension(100, ALTO));
         setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Colores.BORDE));
 
@@ -39,13 +39,13 @@ public class BarraTitulo extends JPanel {
 
         JLabel marca = new JLabel("</>");
         marca.setFont(new Font("Consolas", Font.BOLD, 13));
-        marca.setForeground(Colores.ACENTO_PRINCIPAL);
+        marca.setForeground(Colores.TEXTO_BARRA_TITULO);
         marca.setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 10));
         izquierda.add(marca);
 
         lblTitulo = new JLabel(titulo);
         lblTitulo.setFont(Colores.FUENTE_PEQUENA.deriveFont(12f));
-        lblTitulo.setForeground(Colores.TEXTO_TENUE);
+        lblTitulo.setForeground(Colores.TEXTO_BARRA_TITULO);
         izquierda.add(lblTitulo);
 
         // el contenedor izquierdo ocupa toda la altura para centrar verticalmente
@@ -258,10 +258,10 @@ public class BarraTitulo extends JPanel {
 
             boolean cerrar = tipo == Tipo.CERRAR;
             if (encima) {
-                g2.setColor(cerrar ? Colores.ERROR : Colores.FONDO_SELECCION);
+                g2.setColor(cerrar ? Colores.ERROR : Colores.FONDO_BOTON_HOVER);
                 g2.fillRect(0, 0, w, h);
             }
-            g2.setColor(encima && cerrar ? Colores.SEL_TEXTO : Colores.TEXTO_NORMAL);
+            g2.setColor(Colores.TEXTO_BARRA_TITULO);
             g2.setStroke(new BasicStroke(1.2f));
 
             int cx = w / 2;

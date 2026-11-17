@@ -425,7 +425,24 @@ public class PanelOptimizacion extends JPanel {
         b.setFont(Colores.FUENTE_NORMAL);
         b.setToolTipText(tooltip);
         b.setFocusPainted(false);
+        b.setForeground(Colores.TEXTO_BOTON);
+        b.setBackground(Colores.FONDO_BOTON);
+        b.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Colores.BORDE_ENFOCADO, 1),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10)));
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         b.addActionListener(al);
+        b.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                b.setBackground(Colores.FONDO_BOTON_HOVER);
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                b.setBackground(Colores.FONDO_BOTON);
+            }
+        });
         return b;
     }
 

@@ -1,7 +1,6 @@
 package com.compilador.gui;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.event.ActionListener;
@@ -253,16 +252,16 @@ public class AplicacionPrincipal extends JFrame {
         ));
 
         // Botón Analizar
-        btnAnalizar = crearBoton("▶ Analizar", Colores.ACENTO_PRINCIPAL, e -> ejecutarAnalisis());
+        btnAnalizar = crearBoton("▶ Analizar", e -> ejecutarAnalisis());
         btnAnalizar.setToolTipText("Analizar código (F5)");
         toolbar.add(btnAnalizar);
         toolbar.add(Box.createHorizontalStrut(8));
 
         // Botón Limpiar
-        btnLimpiar = crearBoton("✕ Limpiar", Colores.TEXTO_TENUE, e -> limpiarTodo());
+        btnLimpiar = crearBoton("✕ Limpiar", e -> limpiarTodo());
         toolbar.add(btnLimpiar);
         toolbar.add(Box.createHorizontalStrut(8));
-        toolbar.add(crearBoton("Inicio", Colores.TEXTO_TENUE, e -> mostrarBienvenida()));
+        toolbar.add(crearBoton("Inicio", e -> mostrarBienvenida()));
         toolbar.add(Box.createHorizontalStrut(8));
 
         // Separador visual
@@ -294,27 +293,27 @@ public class AplicacionPrincipal extends JFrame {
         toolbar.add(Box.createHorizontalStrut(8));
 
         // Botón Abrir archivo
-        JButton btnAbrir = crearBoton(" Abrir", Colores.TEXTO_TENUE, e -> abrirArchivo());
+        JButton btnAbrir = crearBoton(" Abrir", e -> abrirArchivo());
         toolbar.add(btnAbrir);
         toolbar.add(Box.createHorizontalStrut(8));
 
         // Botón Guardar
-        JButton btnGuardar = crearBoton(" Guardar", Colores.TEXTO_TENUE, e -> guardarArchivo());
+        JButton btnGuardar = crearBoton(" Guardar", e -> guardarArchivo());
         toolbar.add(btnGuardar);
         toolbar.add(Box.createHorizontalStrut(8));
 
         // Botón Exportar Errores
-        JButton btnExportar = crearBoton(" Exportar Errores", Colores.TEXTO_TENUE, e -> exportarErrores());
+        JButton btnExportar = crearBoton(" Exportar Errores", e -> exportarErrores());
         toolbar.add(btnExportar);
 
         return toolbar;
     }
 
-    private JButton crearBoton(String texto, Color color, ActionListener accion) {
+    private JButton crearBoton(String texto, ActionListener accion) {
         JButton btn = new JButton(texto);
         btn.setFont(Colores.FUENTE_NORMAL);
-        btn.setForeground(color);
-        btn.setBackground(Colores.FONDO_PANEL);
+        btn.setForeground(Colores.TEXTO_BOTON);
+        btn.setBackground(Colores.FONDO_BOTON);
         btn.setFocusPainted(false);
         btn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Colores.BORDE, 1),
@@ -326,7 +325,7 @@ public class AplicacionPrincipal extends JFrame {
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                btn.setBackground(Colores.FONDO_SELECCION);
+                btn.setBackground(Colores.FONDO_BOTON_HOVER);
                 btn.setBorder(BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(Colores.BORDE_ENFOCADO, 1),
                         BorderFactory.createEmptyBorder(4, 12, 4, 12)));
@@ -334,7 +333,7 @@ public class AplicacionPrincipal extends JFrame {
 
             @Override
             public void mouseExited(MouseEvent e) {
-                btn.setBackground(Colores.FONDO_PANEL);
+                btn.setBackground(Colores.FONDO_BOTON);
                 btn.setBorder(BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(Colores.BORDE, 1),
                         BorderFactory.createEmptyBorder(4, 12, 4, 12)));
